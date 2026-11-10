@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="bn"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Voice-Controlled Physics Lab</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#000;color:#e8f0ff;font-family:'Noto Sans Bengali',system-ui,sans-serif;touch-action:none;user-select:none}
+#c{position:fixed;inset:0;width:100%;height:100%}
+.g{background:rgba(10,18,44,.62);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(120,170,255,.4);box-shadow:0 0 18px rgba(70,130,255,.25);border-radius:14px}
+.b{background:rgba(60,100,220,.35);border:1px solid rgba(140,190,255,.5);border-radius:10px;padding:5px 9px;font-size:12px;color:#fff;min-height:32px}
+.b:active,.b.on{background:rgba(90,160,255,.75)}
+select.b option{color:#000}
+@keyframes pl{0%,100%{box-shadow:0 0 6px #0ff}50%{box-shadow:0 0 24px 6px #f0f}}
+.mic.on{animation:pl 1s infinite;background:rgba(255,60,160,.7)}
+#js{width:104px;height:104px;border-radius:50%;position:relative}
+#jk{width:44px;height:44px;border-radius:50%;position:absolute;left:30px;top:30px;background:rgba(120,190,255,.7);box-shadow:0 0 14px #5af}
+input[type=range]{accent-color:#4af}
+.tile{width:58px;height:62px;border:1px solid;border-radius:8px;background:rgba(255,255,255,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;font-size:9px;overflow:hidden}
+.tile b{font-size:17px}.tile i{align-self:flex-start;margin-left:4px;font-size:8px;opacity:.7;font-style:normal}
+.globe{flex:none;width:88px;height:88px;border-radius:50%;background-size:auto 100%;background-repeat:repeat-x;animation:rt 14s linear infinite;box-shadow:inset -16px -8px 26px #000c,inset 6px 4px 14px #fff3}
+@keyframes rt{to{background-position-x:-176px}}
+.mu{background:rgba(70,110,230,.45);border-radius:12px 12px 2px 12px;margin:3px 0 3px 30px;padding:4px 8px}
+.ma{background:rgba(255,255,255,.1);border-radius:12px 12px 12px 2px;margin:3px 30px 3px 0;padding:4px 8px}
+</style></head><body>
+<canvas id="c"></canvas>
+
+<div class="g fixed top-1 left-1 right-1 p-2 flex flex-wrap items-center gap-2 text-xs z-20">
+ <div class="flex-1 min-w-[160px]">
+  <div data-i="0" class="font-bold text-sm text-cyan-300"></div>
+  <div class="text-[12px] font-bold text-yellow-300"><span data-i="30"></span>: <span data-i="31"></span></div><div class="text-[10px] opacity-80"><span data-i="2"></span>: <span data-i="32"></span></div>
+ </div>
+ <div class="text-[12px]"><span id="rk">🧑‍🚀</span> 🪙 <b id="coin">0</b> · XP <b id="xp">0</b> · Lv <b id="lv">1</b></div>
+ <button id="bGear" class="b">⚙️</button><select id="lang" class="b"></select>
+</div>
+<div id="ts" class="g fixed left-2 right-2 top-[132px] z-20 p-2 text-xs text-center" style="display:none"></div>
+<div id="hud" class="g fixed left-2 right-2 top-[96px] z-10 p-1 text-xs text-center" style="display:none"></div>
+
+<div id="fl" class="fixed left-2 right-2 z-10 flex justify-between items-end pointer-events-none" style="bottom:60px">
+ <div id="js" class="g pointer-events-auto"><div id="jk"></div></div>
+ <canvas id="rdr" width="96" height="96" style="width:96px;height:96px"></canvas>
+ <div class="grid grid-cols-2 gap-1 pointer-events-auto">
+  <button id="bMic" class="b mic">🎤</button><button id="bLab" class="b">🏷 1</button>
+  <button id="bMute" class="b">🔊</button><button id="bFree" class="b">🚀</button>
+  <button id="bLand" class="b">🧑‍🚀</button><button id="bAim" class="b">🔭</button>
+  <button id="bUp" class="b">▲</button><button id="bDn" class="b">▼</button>
+  <button id="bZi" class="b">＋</button><button id="bZo" class="b">－</button>
+ </div>
+</div>
+
+<div id="card" class="g fixed left-3 right-3 z-40 p-3 text-xs overflow-y-auto" style="display:none;top:98px;max-height:68vh"></div>
+
+<div id="ai" class="g fixed left-1 right-1 z-30 p-2 text-xs" style="display:none">
+ <div class="flex items-center gap-2 mb-1"><b class="text-cyan-300 whitespace-nowrap">🤖 <span data-i="4"></span></b><button class="b ml-auto" onclick="showAI(0)">✕</button></div>
+ <div id="al" class="overflow-y-auto mb-1" style="height:26vh"></div>
+ <div class="flex gap-1"><input id="aq" class="b flex-1 min-w-0" data-ph="16" style="user-select:text"><button id="aMic" class="b mic">🎤</button><button id="aSend" class="b">➤</button></div>
+</div>
+
+<div id="dw" class="g fixed left-1 right-1 bottom-1 z-20 text-xs">
+ <div class="flex gap-1 p-1 overflow-x-auto" id="tabs">
+  <button class="b" data-t="ctl">🎛 <span data-i="5"></span></button><button class="b" data-t="phy">⚖️ <span data-i="6"></span></button>
+  <button class="b" data-t="atl">🧪 <span data-i="7"></span></button><button class="b" data-t="ai">🤖 <span data-i="4"></span></button><button class="b" data-t="nasa">🛰 NASA</button><button class="b" data-t="ms">🎖 <span id="msc">0/3</span></button>
+ </div>
+ <div id="pn" class="overflow-y-auto p-2" style="max-height:36vh;display:none">
+  <div data-p="ctl" class="space-y-2">
+   <div class="flex gap-1 flex-wrap items-center">
+    <button id="bPlay" class="b">⏸</button><button id="bReset" class="b">↺</button>
+    <button id="bTour" class="b">🎓 <span data-i="3"></span></button><button id="bDay" class="b">🌗</button>
+   </div>
+   <div class="flex gap-1 flex-wrap items-center">⏩ <input id="sl" type="range" min="-6" max="3" step="0.02" value="0.2" class="w-32 align-middle">
+    <button id="sSlow" class="b">⏪ ½</button><button id="sFast" class="b">⏩ ×2</button><button id="sRT" class="b">RT</button><button id="sD" class="b">1d/s</button></div>
+   <div class="flex gap-1 flex-wrap items-center">⏱ 1 day = <input id="tv" type="number" value="1" step="any" min="0" class="b w-20" style="user-select:text">
+    <select id="tu" class="b"><option value="1">s</option><option value="1e-3">ms</option><option value="1e-6">µs</option><option value="1e-9">ns</option></select>
+    <button id="tset" class="b">OK</button> <span id="slv" class="text-yellow-300"></span></div>
+   <div class="flex gap-1 flex-wrap items-center">📅 <input id="dt" type="date" class="b">
+    <button class="b" data-d="79">21 Mar</button><button class="b" data-d="171">21 Jun</button><button class="b" data-d="265">23 Sep</button><button class="b" data-d="354">21 Dec</button>
+    <label><input type="checkbox" id="kp"> Kepler e×5</label></div>
+   <div>🌍 <input id="lat" type="range" min="-80" max="80" value="24" class="align-middle"> <b id="latv"></b>° → ☀️ <b id="dl" class="text-yellow-300"></b></div>
+   <div class="opacity-70">WASD ↑↓←→ · Q/E · [ ] speed · 0 = real-time</div>
+   <div class="opacity-80 text-center border-t border-blue-400/30 pt-1">© Astra Lab · <span data-i="30"></span>: <b class="text-yellow-300" data-i="31"></b></div>
+  </div>
+  <div data-p="phy" class="space-y-2" style="display:none">
+   <select id="ps" class="b"></select>
+   <div id="inf" class="leading-5"></div>
+   <div>⚖️ ×<b id="mmv">1</b> <input id="mm" type="range" min="0.1" max="10" step="0.1" value="1" class="align-middle w-32"></div>
+   <div>📏 ×<b id="dmv">1</b> <input id="dm" type="range" min="0.3" max="3" step="0.05" value="1" class="align-middle w-32"></div>
+   <div class="border-t border-blue-400/40 pt-1">🚀 v<sub>e</sub> = √(2GM/R): <input id="em" type="number" value="1" step="any" class="b w-16" style="user-select:text"> M⊕ <input id="er" type="number" value="1" step="any" class="b w-16" style="user-select:text"> R⊕ → <b id="ev" class="text-yellow-300"></b> <button id="ecb" class="b">🧮</button></div>
+  </div>
+  <div data-p="atl" style="display:none"><div id="ag" class="flex flex-wrap gap-1"></div></div>
+  <div data-p="nasa" style="display:none"><button class="b" onclick="loadNasa(1)">🔄 NASA Live</button><div id="nb" class="leading-5 mt-1"></div></div>
+  <div data-p="ms" style="display:none"><div id="mb"></div></div>
+ </div>
+</div>
+
+<div id="gm" class="fixed inset-0 z-50 flex items-center justify-center p-3" style="display:none;background:rgba(2,4,16,.78)"><div class="g p-4 w-full max-w-md text-xs space-y-2">
+ <div class="font-bold text-sm">⚙️ <span data-i="33"></span></div>
+ <div><span data-i="34"></span> — <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="text-cyan-300 underline">aistudio.google.com</a></div>
+ <input id="ak" type="password" placeholder="AIza…" class="b w-full" style="user-select:text" autocomplete="off">
+ <label><input type="checkbox" id="gshow"> 👁</label>
+ <div>AI: <select id="ap" class="b"><option value="g">Gemini</option><option value="p">Free (no key)</option><option value="o">OpenAI</option><option value="c">Claude</option></select> <input id="am" class="b w-36" style="user-select:text"></div>
+ <div class="border-t border-blue-400/30 pt-1">🔊 <span data-i="37"></span>: <select id="vs" class="b" style="max-width:11rem"></select> <button id="vt" class="b">▶ <span data-i="38"></span></button></div>
+ <div>⏱ <input id="vr" type="range" min=".6" max="1.3" step=".05" class="w-24 align-middle"> <b id="vrv"></b> · 🎵 <input id="vp" type="range" min=".7" max="1.4" step=".05" class="w-24 align-middle"> <b id="vpv"></b></div>
+ <div class="opacity-70">🔒 localStorage</div>
+ <div class="flex gap-2"><button id="gClear" class="b flex-1">🗑 <span data-i="36"></span></button><button id="gSave" class="b flex-1">💾 <span data-i="35"></span></button></div></div></div>
+<div id="bdg" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none;background:rgba(2,4,16,.82)"><div class="g p-5 text-center max-w-xs"><div style="font-size:68px;filter:drop-shadow(0 0 18px gold)">🎖</div><div class="font-bold text-lg text-yellow-300" data-i="43"></div><div id="bdt" class="text-xs mt-1 opacity-90"></div><button class="b mt-3" onclick="$('bdg').style.display='none'">OK 🚀</button></div></div>
+<script>
+const $=id=>document.getElementById(id),V3=THREE.Vector3;
+const G=6.674e-11,AU=1.496e11,MS=1.989e30,TAU=Math.PI*2,OM=.2266,rnd=Math.random,cl=(x,a,b)=>Math.max(a,Math.min(b,x));
+
+/* ---------- i18n: 18 UI keys, 10 names, 2 AI lines ---------- */
+const LG={bn:['বাংলা','bn-BD'],en:['English','en-US'],hi:['हिन्दी','hi-IN'],ar:['العربية','ar-SA'],ur:['اردو','ur-PK'],es:['Español','es-ES'],fr:['Français','fr-FR'],de:['Deutsch','de-DE'],zh:['中文','zh-CN'],ja:['日本語','ja-JP'],ru:['Русский','ru-RU'],pt:['Português','pt-BR'],tr:['Türkçe','tr-TR']};
+const L={
+bn:`ভয়েস-কন্ট্রোলড ফিজিক্স ল্যাব|প্রতিষ্ঠাতা|সহ-প্রতিষ্ঠাতা|ট্যুর|এআই সহকারী|নিয়ন্ত্রণ|পদার্থবিদ্যা|অ্যাটলাস|ভর|ব্যাসার্ধ|পৃষ্ঠের অভিকর্ষ|মুক্তিবেগ|কক্ষপথের সময়কাল|সূর্য থেকে দূরত্ব|উপগ্রহ|এখানে নামুন|মহাকাশ নিয়ে জিজ্ঞাসা করুন…|সূর্যের উচ্চতা|সূর্য|বুধ|শুক্র|পৃথিবী|মঙ্গল|বৃহস্পতি|শনি|ইউরেনাস|নেপচুন|চাঁদ|নমস্কার! গ্রহ, উপগ্রহ বা মহাকর্ষ নিয়ে প্রশ্ন করুন।|বুঝতে পারিনি। কোনো গ্রহ বা উপগ্রহের নাম বলুন।|ইঞ্জিনিয়ার ও প্রতিষ্ঠাতা|মো: ফরহাদ হোসেন|মো: আরাফাত হোসেন|সেটিংস|জেমিনি API কী (ঐচ্ছিক — না দিলে অ্যাপ বিল্ট-ইন/ফ্রি AI ব্যবহার করবে)|সংরক্ষণ|কী মুছুন|কণ্ঠ|টেস্ট|জুনিয়র অ্যাস্ট্রোনট মিশন ট্রেইনার|মিশন ১: টেলিপোর্ট করে মঙ্গল গ্রহে যান (বলুন “টেলিপোর্ট মঙ্গল” বা Atlas ব্যবহার করুন)|মিশন ২: Physics ট্যাবে 1 M⊕ ও 1 R⊕ দিয়ে 🧮 চেপে পৃথিবীর মুক্তিবেগ (১১.১৯ কিমি/সে) হিসাব করুন|মিশন ৩: তারিখ ২১ জুন দিন এবং গ্রীষ্ম অয়নান্তের দিন-রাত দেখুন|NASA জুনিয়র অ্যাস্ট্রোনট ব্যাজ|অভিনন্দন! তিনটি মিশনই সম্পন্ন। 🚀|আজকের মহাকাশ-ছবি|আজ পৃথিবীর কাছ দিয়ে যাওয়া গ্রহাণু|ডেমো ডেটা (API সীমা বা অফলাইন)|সূত্র: NASA Open APIs|মাইক বন্ধ — 🔒 → অনুমতি → মাইক্রোফোন → অনুমতি দিন|পৃথিবী = 1 M⊕ ও 1 R⊕`,
+en:`Voice-Controlled Physics Lab|Founder|Co-Founder|Tour|AI Assistant|Control|Physics|Atlas|Mass|Radius|Surface gravity|Escape velocity|Orbital period|Distance from Sun|Moons|Land here|Ask about space…|Sun elevation|Sun|Mercury|Venus|Earth|Mars|Jupiter|Saturn|Uranus|Neptune|Moon|Hello! Ask me about planets, moons or gravity.|I didn't understand. Say a planet or moon name.|Engineer & Founder|Mo: Farhad Hossain|Mo: Arafat Hossain|Settings|Gemini API key (optional — without it the app uses built-in/free AI)|Save|Clear key|Voice|Test|Junior Astronaut Mission Trainer|Mission 1: Teleport to Mars (say “teleport Mars” or use the Atlas)|Mission 2: In Physics, press 🧮 with 1 M⊕ and 1 R⊕ to get Earth's escape velocity (11.19 km/s)|Mission 3: Set the date to 21 June and watch the summer-solstice day and night|NASA Junior Astronaut Badge|Congratulations! All 3 missions complete. 🚀|Astronomy Picture of the Day|Near-Earth asteroids today|Demo data (API limit or offline)|Source: NASA Open APIs|Mic blocked — tap 🔒 → Permissions → Microphone → Allow|Earth = 1 M⊕ and 1 R⊕`,
+hi:`वॉइस-कंट्रोल्ड फिजिक्स लैब|संस्थापक|सह-संस्थापक|टूर|एआई सहायक|नियंत्रण|भौतिकी|एटलस|द्रव्यमान|त्रिज्या|सतही गुरुत्व|पलायन वेग|कक्षीय अवधि|सूर्य से दूरी|चंद्रमा|यहाँ उतरें|अंतरिक्ष के बारे में पूछें…|सूर्य की ऊँचाई|सूर्य|बुध|शुक्र|पृथ्वी|मंगल|बृहस्पति|शनि|अरुण|वरुण|चंद्रमा|नमस्ते! ग्रहों, चंद्रमाओं या गुरुत्व के बारे में पूछें।|समझ नहीं आया। किसी ग्रह या चंद्रमा का नाम बोलें।|इंजीनियर व संस्थापक|मो. फ़रहाद हुसैन|मो. अराफ़ात हुसैन|सेटिंग्स|Gemini API कुंजी (वैकल्पिक — न देने पर ऐप बिल्ट-इन/मुफ़्त AI इस्तेमाल करेगा)|सहेजें|कुंजी हटाएँ|आवाज़|टेस्ट|जूनियर एस्ट्रोनॉट मिशन ट्रेनर|मिशन 1: टेलीपोर्ट करके मंगल पर जाएँ (“टेलीपोर्ट मंगल” बोलें या Atlas इस्तेमाल करें)|मिशन 2: Physics में 1 M⊕ और 1 R⊕ के साथ 🧮 दबाकर पृथ्वी का पलायन वेग (11.19 किमी/से) निकालें|मिशन 3: तारीख़ 21 जून करें और ग्रीष्म अयनांत का दिन-रात देखें|NASA जूनियर एस्ट्रोनॉट बैज|बधाई! तीनों मिशन पूरे हुए। 🚀|आज की खगोलीय तस्वीर|आज पृथ्वी के पास से गुज़रते क्षुद्रग्रह|डेमो डेटा (API सीमा या ऑफ़लाइन)|स्रोत: NASA Open APIs|माइक बंद — 🔒 → अनुमतियाँ → माइक्रोफ़ोन → अनुमति दें|पृथ्वी = 1 M⊕ और 1 R⊕`,
+ar:`مختبر الفيزياء بالتحكم الصوتي|المؤسس|المؤسس المشارك|جولة|مساعد الذكاء الاصطناعي|التحكم|الفيزياء|الأطلس|الكتلة|نصف القطر|جاذبية السطح|سرعة الإفلات|الفترة المدارية|البعد عن الشمس|الأقمار|اهبط هنا|اسأل عن الفضاء…|ارتفاع الشمس|الشمس|عطارد|الزهرة|الأرض|المريخ|المشتري|زحل|أورانوس|نبتون|القمر|مرحباً! اسألني عن الكواكب والأقمار والجاذبية.|لم أفهم. اذكر اسم كوكب أو قمر.|المهندس والمؤسس|محمد فرهاد حسين|محمد عرفات حسين|الإعدادات|مفتاح Gemini API (اختياري — بدونه يستخدم التطبيق ذكاءً مدمجاً/مجانياً)|حفظ|حذف المفتاح|الصوت|اختبار|مدرّب مهمات رائد الفضاء الصغير|المهمة 1: انتقل آنياً إلى المريخ (قل “انتقال المريخ” أو استخدم الأطلس)|المهمة 2: في الفيزياء اضغط 🧮 مع 1 M⊕ و1 R⊕ لحساب سرعة الإفلات من الأرض (11.19 كم/ث)|المهمة 3: اضبط التاريخ على 21 يونيو وراقب النهار والليل في الانقلاب الصيفي|شارة رائد فضاء ناسا الصغير|تهانينا! اكتملت المهمات الثلاث. 🚀|صورة اليوم الفلكية|كويكبات قريبة من الأرض اليوم|بيانات تجريبية (حد الواجهة أو بلا إنترنت)|المصدر: NASA Open APIs|الميكروفون محظور — اضغط 🔒 ← الأذونات ← الميكروفون ← السماح|الأرض = 1 M⊕ و1 R⊕`,
+ur:`وائس کنٹرولڈ فزکس لیب|بانی|شریک بانی|ٹور|اے آئی معاون|کنٹرول|طبیعیات|اٹلس|کمیت|رداس|سطحی کشش ثقل|فرار کی رفتار|مداری مدت|سورج سے فاصلہ|چاند|یہاں اتریں|خلا کے بارے میں پوچھیں…|سورج کی بلندی|سورج|عطارد|زہرہ|زمین|مریخ|مشتری|زحل|یورینس|نیپچون|چاند|سلام! سیاروں، چاندوں یا کشش ثقل کے بارے میں پوچھیں۔|سمجھ نہیں آیا۔ کسی سیارے یا چاند کا نام بتائیں۔|انجینئر و بانی|محمد فرہاد حسین|محمد عرفات حسین|سیٹنگز|Gemini API کلید (اختیاری — نہ دینے پر ایپ بلٹ اِن/مفت AI استعمال کرے گی)|محفوظ کریں|کلید مٹائیں|آواز|ٹیسٹ|جونیئر ایسٹرونٹ مشن ٹرینر|مشن 1: ٹیلی پورٹ کر کے مریخ پر جائیں (“ٹیلی پورٹ مریخ” کہیں یا Atlas استعمال کریں)|مشن 2: Physics میں 1 M⊕ اور 1 R⊕ کے ساتھ 🧮 دبا کر زمین کی فرار رفتار (11.19 کلومیٹر/سیکنڈ) نکالیں|مشن 3: تاریخ 21 جون کریں اور گرمیوں کے انقلاب کے دن رات دیکھیں|NASA جونیئر ایسٹرونٹ بیج|مبارک ہو! تینوں مشن مکمل ہوئے۔ 🚀|آج کی فلکیاتی تصویر|آج زمین کے قریب سے گزرنے والے سیارچے|ڈیمو ڈیٹا (API حد یا آف لائن)|ماخذ: NASA Open APIs|مائیک بند — 🔒 ← اجازتیں ← مائیکروفون ← اجازت دیں|زمین = 1 M⊕ اور 1 R⊕`,
+es:`Laboratorio de Física por Voz|Fundador|Cofundador|Tour|Asistente IA|Control|Física|Atlas|Masa|Radio|Gravedad superficial|Velocidad de escape|Periodo orbital|Distancia al Sol|Lunas|Aterrizar aquí|Pregunta sobre el espacio…|Elevación del Sol|Sol|Mercurio|Venus|Tierra|Marte|Júpiter|Saturno|Urano|Neptuno|Luna|¡Hola! Pregunta por planetas, lunas o gravedad.|No entendí. Di el nombre de un planeta o luna.|Ingeniero y fundador|Mo: Farhad Hossain|Mo: Arafat Hossain|Ajustes|Clave API de Gemini (opcional: sin ella la app usa IA integrada/gratuita)|Guardar|Borrar clave|Voz|Probar|Entrenador de misiones de astronauta junior|Misión 1: Teletranspórtate a Marte (di “teletransporte Marte” o usa el Atlas)|Misión 2: En Física pulsa 🧮 con 1 M⊕ y 1 R⊕ para obtener la velocidad de escape de la Tierra (11,19 km/s)|Misión 3: Pon la fecha en el 21 de junio y observa el día y la noche del solsticio de verano|Insignia de astronauta junior de la NASA|¡Felicidades! Las 3 misiones completadas. 🚀|Imagen astronómica del día|Asteroides cercanos a la Tierra hoy|Datos de demostración (límite de API o sin conexión)|Fuente: NASA Open APIs|Micrófono bloqueado: toca 🔒 → Permisos → Micrófono → Permitir|Tierra = 1 M⊕ y 1 R⊕`,
+fr:`Labo de Physique Vocal|Fondateur|Cofondateur|Visite|Assistant IA|Contrôle|Physique|Atlas|Masse|Rayon|Gravité de surface|Vitesse de libération|Période orbitale|Distance au Soleil|Lunes|Atterrir ici|Question sur l'espace…|Hauteur du Soleil|Soleil|Mercure|Vénus|Terre|Mars|Jupiter|Saturne|Uranus|Neptune|Lune|Bonjour ! Posez-moi des questions sur les planètes, lunes ou la gravité.|Je n'ai pas compris. Dites un nom de planète ou de lune.|Ingénieur et fondateur|Mo: Farhad Hossain|Mo: Arafat Hossain|Paramètres|Clé API Gemini (facultative : sans elle, l'appli utilise une IA intégrée/gratuite)|Enregistrer|Effacer la clé|Voix|Tester|Entraîneur de missions de jeune astronaute|Mission 1 : Téléportez-vous sur Mars (dites « téléportation Mars » ou utilisez l'Atlas)|Mission 2 : Dans Physique, appuyez sur 🧮 avec 1 M⊕ et 1 R⊕ pour obtenir la vitesse de libération de la Terre (11,19 km/s)|Mission 3 : Réglez la date au 21 juin et observez le jour et la nuit du solstice d'été|Badge de jeune astronaute de la NASA|Félicitations ! Les 3 missions sont terminées. 🚀|Image astronomique du jour|Astéroïdes proches de la Terre aujourd'hui|Données de démo (limite d'API ou hors ligne)|Source : NASA Open APIs|Micro bloqué : touchez 🔒 → Autorisations → Microphone → Autoriser|Terre = 1 M⊕ et 1 R⊕`,
+de:`Sprachgesteuertes Physiklabor|Gründer|Mitgründer|Tour|KI-Assistent|Steuerung|Physik|Atlas|Masse|Radius|Oberflächengravitation|Fluchtgeschwindigkeit|Umlaufzeit|Entfernung zur Sonne|Monde|Hier landen|Frag zum Weltraum…|Sonnenhöhe|Sonne|Merkur|Venus|Erde|Mars|Jupiter|Saturn|Uranus|Neptun|Mond|Hallo! Frag mich zu Planeten, Monden oder Gravitation.|Nicht verstanden. Nenne einen Planeten oder Mond.|Ingenieur & Gründer|Mo: Farhad Hossain|Mo: Arafat Hossain|Einstellungen|Gemini-API-Schlüssel (optional – ohne ihn nutzt die App eine integrierte/kostenlose KI)|Speichern|Schlüssel löschen|Stimme|Test|Junior-Astronauten-Missionstrainer|Mission 1: Teleportiere zum Mars (sage „Teleport Mars“ oder nutze den Atlas)|Mission 2: Drücke in Physik 🧮 mit 1 M⊕ und 1 R⊕, um die Fluchtgeschwindigkeit der Erde (11,19 km/s) zu berechnen|Mission 3: Stelle das Datum auf den 21. Juni und beobachte Tag und Nacht der Sommersonnenwende|NASA-Junior-Astronauten-Abzeichen|Glückwunsch! Alle 3 Missionen geschafft. 🚀|Astronomisches Bild des Tages|Erdnahe Asteroiden heute|Demodaten (API-Limit oder offline)|Quelle: NASA Open APIs|Mikrofon blockiert – tippe auf 🔒 → Berechtigungen → Mikrofon → Zulassen|Erde = 1 M⊕ und 1 R⊕`,
+zh:`语音控制物理实验室|创始人|联合创始人|导览|AI助手|控制|物理|图鉴|质量|半径|表面重力|逃逸速度|轨道周期|距太阳距离|卫星|在此着陆|询问太空问题…|太阳高度|太阳|水星|金星|地球|火星|木星|土星|天王星|海王星|月球|你好！可以问我行星、卫星或引力。|没听懂，请说出行星或卫星的名字。|工程师兼创始人|穆罕默德·法尔哈德·侯赛因|穆罕默德·阿拉法特·侯赛因|设置|Gemini API 密钥（可选——不填则使用内置/免费 AI）|保存|清除密钥|语音|测试|少年宇航员任务训练|任务 1：传送到火星（说“传送火星”或使用图鉴）|任务 2：在物理中输入 1 M⊕ 和 1 R⊕ 并点击 🧮，计算地球逃逸速度（11.19 公里/秒）|任务 3：把日期设为 6 月 21 日，观察夏至的昼夜|NASA 少年宇航员徽章|恭喜！三项任务全部完成。🚀|每日天文图片|今日近地小行星|演示数据（API 限额或离线）|来源：NASA Open APIs|麦克风被禁用——点击 🔒 → 权限 → 麦克风 → 允许|地球 = 1 M⊕ 和 1 R⊕`,
+ja:`音声操作フィジックスラボ|創設者|共同創設者|ツアー|AIアシスタント|操作|物理|図鑑|質量|半径|表面重力|脱出速度|公転周期|太陽からの距離|衛星|ここに着陸|宇宙について質問…|太陽高度|太陽|水星|金星|地球|火星|木星|土星|天王星|海王星|月|こんにちは！惑星・衛星・重力について聞いてください。|分かりませんでした。惑星か衛星の名前を言ってください。|エンジニア兼創設者|モハメド・ファルハード・ホサイン|モハメド・アラファト・ホサイン|設定|Gemini APIキー（任意。未入力なら内蔵/無料AIを使用）|保存|キー削除|音声|テスト|ジュニア宇宙飛行士ミッショントレーナー|ミッション1：火星へテレポート（「テレポート 火星」と言うか図鑑を使う）|ミッション2：物理で 1 M⊕ と 1 R⊕ を入れて 🧮 を押し、地球の脱出速度（11.19 km/s）を求める|ミッション3：日付を6月21日にして夏至の昼と夜を観察する|NASAジュニア宇宙飛行士バッジ|おめでとう！3つのミッションをすべて達成。🚀|今日の天文写真|今日の地球近傍小惑星|デモデータ（API制限またはオフライン）|出典：NASA Open APIs|マイクがブロックされています：🔒 → 権限 → マイク → 許可|地球 = 1 M⊕ と 1 R⊕`,
+ru:`Физлаборатория с голосом|Основатель|Сооснователь|Тур|ИИ-помощник|Управление|Физика|Атлас|Масса|Радиус|Гравитация на поверхности|Вторая космическая скорость|Орбитальный период|Расстояние от Солнца|Спутники|Приземлиться|Спросите о космосе…|Высота Солнца|Солнце|Меркурий|Венера|Земля|Марс|Юпитер|Сатурн|Уран|Нептун|Луна|Привет! Спросите о планетах, спутниках или гравитации.|Не понял. Назовите планету или спутник.|Инженер и основатель|Мо. Фархад Хоссейн|Мо. Арафат Хоссейн|Настройки|Ключ Gemini API (необязательно — без него приложение использует встроенный/бесплатный ИИ)|Сохранить|Удалить ключ|Голос|Тест|Тренажёр миссий юного астронавта|Миссия 1: Телепортируйтесь на Марс (скажите «телепорт Марс» или используйте Атлас)|Миссия 2: В Физике нажмите 🧮 при 1 M⊕ и 1 R⊕, чтобы получить вторую космическую скорость Земли (11,19 км/с)|Миссия 3: Установите дату 21 июня и наблюдайте день и ночь в день летнего солнцестояния|Значок юного астронавта NASA|Поздравляем! Все 3 миссии выполнены. 🚀|Астрономическая картинка дня|Околоземные астероиды сегодня|Демо-данные (лимит API или офлайн)|Источник: NASA Open APIs|Микрофон заблокирован — нажмите 🔒 → Разрешения → Микрофон → Разрешить|Земля = 1 M⊕ и 1 R⊕`,
+pt:`Laboratório de Física por Voz|Fundador|Cofundador|Tour|Assistente de IA|Controle|Física|Atlas|Massa|Raio|Gravidade na superfície|Velocidade de escape|Período orbital|Distância do Sol|Luas|Pousar aqui|Pergunte sobre o espaço…|Elevação do Sol|Sol|Mercúrio|Vênus|Terra|Marte|Júpiter|Saturno|Urano|Netuno|Lua|Olá! Pergunte sobre planetas, luas ou gravidade.|Não entendi. Diga o nome de um planeta ou lua.|Engenheiro e fundador|Mo: Farhad Hossain|Mo: Arafat Hossain|Configurações|Chave da API Gemini (opcional — sem ela o app usa IA integrada/gratuita)|Salvar|Apagar chave|Voz|Testar|Treinador de missões de astronauta júnior|Missão 1: Teletransporte-se para Marte (diga “teletransporte Marte” ou use o Atlas)|Missão 2: Em Física, toque em 🧮 com 1 M⊕ e 1 R⊕ para obter a velocidade de escape da Terra (11,19 km/s)|Missão 3: Defina a data para 21 de junho e observe o dia e a noite do solstício de verão|Distintivo de astronauta júnior da NASA|Parabéns! As 3 missões foram concluídas. 🚀|Imagem astronômica do dia|Asteroides próximos da Terra hoje|Dados de demonstração (limite da API ou offline)|Fonte: NASA Open APIs|Microfone bloqueado: toque em 🔒 → Permissões → Microfone → Permitir|Terra = 1 M⊕ e 1 R⊕`,
+tr:`Sesli Fizik Laboratuvarı|Kurucu|Ortak Kurucu|Tur|Yapay Zekâ Asistanı|Kontrol|Fizik|Atlas|Kütle|Yarıçap|Yüzey çekimi|Kaçış hızı|Yörünge periyodu|Güneş'e uzaklık|Uydular|Buraya in|Uzay hakkında sor…|Güneş yüksekliği|Güneş|Merkür|Venüs|Dünya|Mars|Jüpiter|Satürn|Uranüs|Neptün|Ay|Merhaba! Gezegenler, uydular veya yerçekimi hakkında sor.|Anlamadım. Bir gezegen veya uydu adı söyle.|Mühendis ve kurucu|Mo: Farhad Hossain|Mo: Arafat Hossain|Ayarlar|Gemini API anahtarı (isteğe bağlı — girilmezse uygulama yerleşik/ücretsiz yapay zekâyı kullanır)|Kaydet|Anahtarı sil|Ses|Test|Genç Astronot Görev Eğitmeni|Görev 1: Mars'a ışınlan (“ışınlan Mars” de veya Atlas'ı kullan)|Görev 2: Fizik sekmesinde 1 M⊕ ve 1 R⊕ ile 🧮 düğmesine basıp Dünya'nın kaçış hızını (11,19 km/sn) hesapla|Görev 3: Tarihi 21 Haziran yap ve yaz gündönümünde gündüz ile geceyi izle|NASA Genç Astronot Rozeti|Tebrikler! 3 görevin hepsi tamamlandı. 🚀|Günün Astronomi Resmi|Bugün Dünya'ya yakın asteroitler|Demo verisi (API sınırı veya çevrimdışı)|Kaynak: NASA Open APIs|Mikrofon engelli — 🔒 → İzinler → Mikrofon → İzin ver'e dokun|Dünya = 1 M⊕ ve 1 R⊕`};
+const TL={};for(const k in L)TL[k]=L[k].split('|');
+let lang='en';const t=i=>TL[lang][i],isBn=()=>lang=='bn';
+const nm=b=>b.ni!=null?t(18+b.ni):isBn()?b.bn:b.n;
+
+/* ---------- renderer & procedural realistic textures ---------- */
+const R=new THREE.WebGLRenderer({canvas:$('c'),antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));
+const S=new THREE.Scene(),C=new THREE.PerspectiveCamera(60,1,.03,8000),skyC=new THREE.Color();
+S.add(new THREE.AmbientLight(0x334466,.14));S.add(new THREE.PointLight(0xffffff,2,0,0));
+function rs(){R.setSize(innerWidth,innerHeight);C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix()}addEventListener('resize',rs);rs();
+const hs=(x,y)=>{const n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n)};
+const vn=(x,y)=>{const i=Math.floor(x),j=Math.floor(y),f=x-i,g=y-j,u=f*f*(3-2*f),v=g*g*(3-2*g);return(hs(i,j)*(1-u)+hs(i+1,j)*u)*(1-v)+(hs(i,j+1)*(1-u)+hs(i+1,j+1)*u)*v};
+const fb=(x,y)=>{let s=0,a=.5;for(let i=0;i<4;i++){s+=a*vn(x,y);x*=2.03;y*=2.03;a*=.5}return s*1.07};
+function TX(sp,W){const[c,d,sc,bd,fl]=sp=='e'?[0,0,0,0,'e']:sp,H=W/2,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d'),im=x.createImageData(W,H),o=im.data;
+ for(let j=0;j<H;j++)for(let i=0;i<W;i++){const u=i/W,v=j/H;let r,g,b;
+  if(fl=='e'){const l=fb(u*5,v*5+9);if(l>.5){const q=(l-.5)*3,gr=fb(u*9,v*9);r=55+90*gr+q*50;g=90+60*gr-q*10;b=40+30*gr}else{const dp=.5+l;r=6*dp;g=30*dp+8;b=80*dp+25}if(Math.abs(v-.5)>.44)r=g=b=235}
+  else{const n=fb(u*sc,v*sc*.7+3),tt=bd?cl(.5+.5*Math.sin(v*(30+bd*40)+fb(u*6,v*14)*6*bd),0,1)*bd+(1-bd)*n:n,k=cl(tt*1.25,0,1);r=c[0]+(d[0]-c[0])*k;g=c[1]+(d[1]-c[1])*k;b=c[2]+(d[2]-c[2])*k;if(fl=='m'&&Math.abs(v-.5)>.46)r=g=b=235}
+  const p=(j*W+i)*4;o[p]=r;o[p+1]=g;o[p+2]=b;o[p+3]=255}
+ x.putImageData(im,0,0);return cv}
+const tex=cv=>new THREE.CanvasTexture(cv);
+const starM=new THREE.PointsMaterial({size:2.2,sizeAttenuation:false,vertexColors:true,transparent:true});
+{const N=4500,p=new Float32Array(N*3),c=new Float32Array(N*3);for(let i=0;i<N;i++){const v=new V3(rnd()-.5,rnd()-.5,rnd()-.5).normalize().multiplyScalar(3000+rnd()*2000);p.set([v.x,v.y,v.z],i*3);const q=rnd(),w=.5+rnd()*.5;c.set(q<.2?[w*.7,w*.8,w]:q>.8?[w,w*.8,w*.6]:[w,w,w],i*3)}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('color',new THREE.BufferAttribute(c,3));S.add(new THREE.Points(g,starM))}
+
+/* ---------- data ---------- */
+const P=[['Mercury','বুধ',.387,.206,88,3.30e23,2440,.03,.017,'#a7a29b',[[70,68,66],[150,145,140],10,0]],
+['Venus','শুক্র',.723,.007,224.7,4.87e24,6052,177,-.004,'#e0c48f',[[190,150,90],[240,215,160],3,.35]],
+['Earth','পৃথিবী',1,.0167,365.25,5.97e24,6371,23.44,1,'#3d7fd8','e'],
+['Mars','মঙ্গল',1.524,.093,687,6.42e23,3390,25.2,.97,'#c0623f',[[110,55,35],[200,120,70],7,0,'m']],
+['Jupiter','বৃহস্পতি',5.203,.048,4333,1.898e27,69911,3.1,2.4,'#c9a27a',[[140,95,60],[235,215,185],3,.9]],
+['Saturn','শনি',9.537,.054,10759,5.683e26,58232,26.7,2.2,'#d9c590',[[170,145,100],[235,215,165],3,.8]],
+['Uranus','ইউরেনাস',19.19,.047,30687,8.68e25,25362,97.8,-1.4,'#8fcad2',[[130,190,200],[175,225,230],2,.3]],
+['Neptune','নেপচুন',30.07,.009,60190,1.02e26,24622,28.3,1.5,'#4a6cd0',[[30,55,150],[90,130,220],3,.5]]];
+const SY=['Me','Ve','Ea','Ma','Ju','Sa','Ur','Ne'];
+const ATM={Earth:[.25,.5,1,1],Venus:[.8,.6,.3,.9],Mars:[.7,.5,.35,.45],Jupiter:[.7,.55,.4,.5],Saturn:[.7,.62,.45,.5],Uranus:[.4,.7,.75,.5],Neptune:[.2,.3,.7,.5],Titan:[.5,.3,.1,.7]};
+const M=[['Moon','চাঁদ',2,1737,7.35e22,2.8,27.3,.09,[[90,90,92],[190,190,192],12,0],'Lu'],
+['Io','আইও',4,1822,8.93e22,1.9,1.77,0,[[170,150,40],[235,220,110],8,0],'Io'],
+['Europa','ইউরোপা',4,1561,4.8e22,2.3,3.55,0,[[160,140,120],[235,230,220],6,0],'Eu'],
+['Ganymede','গ্যানিমিড',4,2634,1.48e23,2.8,7.15,0,[[90,80,70],[170,160,150],9,0],'Ga'],
+['Callisto','ক্যালিস্টো',4,2410,1.08e23,3.4,16.7,0,[[50,45,42],[120,110,100],12,0],'Ca'],
+['Titan','টাইটান',5,2575,1.345e23,3.2,15.95,0,[[150,90,30],[220,150,60],2,.2],'Ti']];
+const B=[],PL=[],KR=[],ML=[];
+const add=o=>(o.sp=null,B.push(o),o);
+const vis=a=>25*Math.pow(a,.55)+10,sz=r=>1.5*Math.sqrt(r/6371);
+// Sun
+const sunG=new THREE.Group(),sunCv=TX([[255,150,30],[255,240,170],6,0],256);
+sunG.add(new THREE.Mesh(new THREE.SphereGeometry(8,48,32),new THREE.MeshBasicMaterial({map:tex(sunCv)})));
+{const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d'),gr=x.createRadialGradient(64,64,4,64,64,64);gr.addColorStop(0,'rgba(255,225,140,1)');gr.addColorStop(.4,'rgba(255,170,60,.4)');gr.addColorStop(1,'rgba(255,110,0,0)');x.fillStyle=gr;x.fillRect(0,0,128,128);
+ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex(c),blending:THREE.AdditiveBlending,depthWrite:false}));sp.scale.set(34,34,1);sunG.add(sp)}
+S.add(sunG);add({n:'Sun',bn:'সূর্য',ni:0,type:'star',col:'#ffc83d',m:sunG,s:8,mass:MS,Rk:696340,T:0,sy:'Sol',tc:sunCv});
+let earth,earthAtm,clouds;
+P.forEach((d,i)=>{const s=sz(d[6]),g=new THREE.Group(),cv=TX(d[10],i==2?512:384);g.rotation.z=-d[7]*Math.PI/180;
+ const body=new THREE.Mesh(new THREE.SphereGeometry(s,56,40),new THREE.MeshStandardMaterial({map:tex(cv),roughness:.92}));g.add(body);
+ if(i==5)[[1.25,1.95,.85,0xcdb98a],[2.05,2.3,.55,0xa89878]].forEach(([a,b,o,c])=>{const r=new THREE.Mesh(new THREE.RingGeometry(s*a,s*b,96),new THREE.MeshStandardMaterial({color:c,side:THREE.DoubleSide,transparent:true,opacity:o}));r.rotation.x=Math.PI/2;g.add(r)});
+ if(i==2){const c=document.createElement('canvas');c.width=256;c.height=128;const x=c.getContext('2d'),im=x.createImageData(256,128);for(let j=0;j<128;j++)for(let k=0;k<256;k++){const p=(j*256+k)*4,a=cl((fb(k/256*6,j/128*6+20)-.46)*4,0,1);im.data.set([255,255,255,a*230],p)}x.putImageData(im,0,0);
+  clouds=new THREE.Mesh(new THREE.SphereGeometry(s*1.025,48,32),new THREE.MeshStandardMaterial({map:tex(c),transparent:true,depthWrite:false}));g.add(clouds);
+  earthAtm=new THREE.Mesh(new THREE.SphereGeometry(s*1.1,32,24),new THREE.MeshBasicMaterial({color:0x4a90ff,transparent:true,opacity:.16,side:THREE.BackSide}));g.add(earthAtm);earth=g}
+ S.add(g);const p={m:g,body,s,a:d[2],e:d[3],T:d[4],rot:d[8],dm:1,mm:1,w:OM+(i==2?0:i*.9+.5),r:d[2],col:d[9]};PL.push(p);KR.push(p);
+ add({n:d[0],bn:d[1],ni:i+1,type:'planet',col:d[9],m:g,s,mass:d[5],Rk:d[6],T:d[4],pi:i,sy:SY[i],tc:cv,land:1,atm:ATM[d[0]]})});
+M.forEach(d=>{const s=sz(d[3]),cv=TX(d[8],192),m=new THREE.Mesh(new THREE.SphereGeometry(s,32,24),new THREE.MeshStandardMaterial({map:tex(cv),roughness:1}));S.add(m);
+ ML.push({m,par:d[2],R:d[5]*PL[d[2]].s,T:d[6],inc:d[7],lock:1});add({n:d[0],bn:d[1],ni:d[0]=='Moon'?9:null,type:'moon',col:'#c9ced6',m,s,mass:d[4],Rk:d[3],T:d[6],par:d[2],sy:d[9],tc:cv,land:1,atm:ATM[d[0]]})});
+const mkSat=(w,h)=>{const g=new THREE.Group();g.add(new THREE.Mesh(new THREE.BoxGeometry(.12,.08,.12),new THREE.MeshStandardMaterial({color:0xdddddd,metalness:.8,roughness:.4})));g.add(new THREE.Mesh(new THREE.BoxGeometry(w,.01,h),new THREE.MeshStandardMaterial({color:0x1c3f8f,emissive:0x0a1a44})));S.add(g);return g};
+[['ISS','আইএসএস',4.2e5,2.4,3,.9,.0646,'IS',.7,.15],['Hubble','হাবল',1.1e4,2.9,4,.497,.0663,'HS',.3,.3]].forEach(d=>{const m=mkSat(d[8],d[9]);ML.push({m,par:2,R:d[3],T:d[4],inc:d[5],lock:0});add({n:d[0],bn:d[1],ni:null,type:'sat',col:'#22d3ee',m,s:.15,mass:d[2],Rk:.05,T:d[6],par:2,sy:d[7]})}); // satellites orbit slower in view than in reality
+// Comet (Halley-like, stylised orbit) with glowing tail
+const cm=new THREE.Group();cm.add(new THREE.Mesh(new THREE.IcosahedronGeometry(.5,1),new THREE.MeshStandardMaterial({color:0x7d8087,roughness:1,flatShading:true})));
+{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),gr=x.createRadialGradient(32,32,2,32,32,32);gr.addColorStop(0,'rgba(200,240,255,1)');gr.addColorStop(1,'rgba(80,160,255,0)');x.fillStyle=gr;x.fillRect(0,0,64,64);const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex(c),blending:THREE.AdditiveBlending,depthWrite:false}));sp.scale.set(5,5,1);cm.add(sp)}
+S.add(cm);const NT=260,tpA=new Float32Array(NT*3),tcA=new Float32Array(NT*3),tj=Array.from({length:NT},()=>[rnd()-.5,rnd()-.5,rnd()-.5]),tg=new THREE.BufferGeometry();
+tg.setAttribute('position',new THREE.BufferAttribute(tpA,3));tg.setAttribute('color',new THREE.BufferAttribute(tcA,3));
+const tail=new THREE.Points(tg,new THREE.PointsMaterial({size:3.2,sizeAttenuation:false,vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));tail.frustumCulled=false;S.add(tail);
+const cRec={m:cm,a:17.8,e:.8,T:27500,dm:1,w:1.1,r:17.8,col:'#ff7a1a'};KR.push(cRec);add({n:'Halley',bn:'হ্যালি',ni:null,type:'comet',col:'#ff7a1a',m:cm,s:.5,mass:2.2e14,Rk:5.5,T:27500,sy:'Ha',rec:cRec});
+// Ceres + asteroid belt (dust + rocky meteoroids)
+{const cv=TX([[70,66,62],[130,125,120],10,0],192),s=sz(473),m=new THREE.Mesh(new THREE.SphereGeometry(s,24,16),new THREE.MeshStandardMaterial({map:tex(cv),roughness:1}));S.add(m);
+ const r={m,a:2.77,e:.08,T:1680,dm:1,w:2.2,r:2.77,col:'#9a8f84'};KR.push(r);add({n:'Ceres',bn:'সেরেস',ni:null,type:'ast',col:'#9a8f84',m,s,mass:9.38e20,Rk:473,T:1680,sy:'Ce',tc:cv,land:1,rec:r})}
+const belt=new THREE.Group();{const N=2500,p=new Float32Array(N*3);for(let i=0;i<N;i++){const a=rnd()*TAU,r=48+rnd()*13;p.set([Math.cos(a)*r,(rnd()-.5)*2.5,Math.sin(a)*r],i*3)}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));belt.add(new THREE.Points(g,new THREE.PointsMaterial({color:0x9a8f84,size:1.6,sizeAttenuation:false})));
+ const rk=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.18,0),new THREE.MeshStandardMaterial({color:0x8a8178,roughness:1,flatShading:true}),160),mt=new THREE.Object3D();
+ for(let i=0;i<160;i++){const a=rnd()*TAU,r=48+rnd()*13;mt.position.set(Math.cos(a)*r,(rnd()-.5)*2,Math.sin(a)*r);mt.scale.set(.5+rnd()*2,.5+rnd()*1.5,.5+rnd()*2);mt.rotation.set(rnd()*3,rnd()*3,rnd()*3);mt.updateMatrix();rk.setMatrixAt(i,mt.matrix)}belt.add(rk);S.add(belt)}
+B.forEach((b,i)=>{b.i=i;b.al=[b.n,b.bn,...(b.ni!=null?Object.values(TL).map(a=>a[18+b.ni]):[])].map(x=>x.toLowerCase())});
+const TI={star:'⭐',planet:'🪐',moon:'🌙',sat:'🛰',comet:'☄️',ast:'🪨'};
+const dsun=b=>b.pi!=null?PL[b.pi].r:b.par!=null?PL[b.par].r:b.rec?b.rec.r:0;
+
+/* ---------- labels / icons / display modes ---------- */
+let lbm=1;
+function lab(b){const c=document.createElement('canvas');c.width=320;c.height=64;const x=c.getContext('2d'),tx=nm(b);x.font='bold 30px sans-serif';x.textBaseline='middle';x.shadowColor='#000';x.shadowBlur=6;
+ if(lbm==1){x.textAlign='center';x.fillStyle='#fff';x.fillText(tx,160,34)}
+ else{const w=x.measureText(tx).width,x0=160-w/2-14;x.shadowColor=b.col;x.shadowBlur=b.type=='star'?26:12;x.fillStyle=b.col;x.strokeStyle=b.col;x.lineWidth=3;x.beginPath();
+  if(b.type=='sat')x.rect(x0-9,25,18,18);else x.arc(x0,34,b.type=='star'?13:10,0,TAU);x.fill();if(b.type=='comet'){x.beginPath();x.moveTo(x0,34);x.lineTo(x0-16,44);x.stroke()}
+  x.shadowColor='#000';x.shadowBlur=6;x.fillStyle='#fff';x.textAlign='left';x.fillText(tx,x0+22,34)}
+ const tt=tex(c);if(!b.sp){b.sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tt,sizeAttenuation:false,depthTest:false,transparent:true}));b.sp.scale.set(.25,.05,1);b.sp.position.set(0,b.s+1.3,0);b.sp.renderOrder=9;b.m.add(b.sp)}else{b.sp.material.map.dispose();b.sp.material.map=tt}}
+const garr=new THREE.ArrowHelper(new V3(1,0,0),new V3(),5,0xff4455,1.2,.8);S.add(garr);
+const gl=new THREE.BufferGeometry();gl.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));const gline=new THREE.Line(gl,new THREE.LineBasicMaterial({color:0xffdd55,transparent:true,opacity:.6}));gline.frustumCulled=false;S.add(gline);
+function vu(){const s=lbm<3&&!ld;B.forEach(b=>b.sp.visible=s);KR.forEach(p=>p.line&&(p.line.visible=lbm<3));garr.visible=gline.visible=lbm<3&&!ld}
+const PR={star:0,planet:1,comet:2,ast:3,moon:4,sat:5};let dcT=0;
+function declutter(tm){if(tm-dcT<90||lbm>2||ld)return;dcT=tm;const W=innerWidth,H=innerHeight,lw=(lbm==1?.13:.18)*H,lh=.04*H,pl=[],v=new V3();
+ B.map(b=>({b,d:b.m.position.distanceTo(pos)})).sort((a,c)=>(c.b.m===fol)-(a.b.m===fol)||PR[a.b.type]-PR[c.b.type]||a.d-c.d).forEach(({b,d})=>{
+  b.sp.getWorldPosition(v);v.project(C);let ok=v.z<1&&Math.abs(v.x)<1.05&&Math.abs(v.y)<1.05;
+  if(ok&&(b.type=='moon'&&d>45+b.s*20||b.type=='sat'&&d>14))ok=false; // far moons/satellites: no label
+  if(ok){const x=(v.x+1)/2*W,y=(1-v.y)/2*H;for(const r of pl)if(Math.abs(x-r[0])<lw&&Math.abs(y-r[1])<lh){ok=false;break}if(ok)pl.push([x,y])}
+  b.sp.visible=ok;const q=[1,1,.9,.85,.8,.7][PR[b.type]];b.sp.scale.set(.25*q,.05*q,1)})}
+$('bLab').onclick=()=>{lbm=lbm%3+1;$('bLab').textContent='🏷 '+lbm;B.forEach(lab);vu()};
+
+/* ---------- Kepler orbits ---------- */
+const kp=()=>$('kp').checked,ee=e=>Math.min(e*(kp()?5:1),.8);
+const rot=(x,z,w)=>new V3(x*Math.cos(w)-z*Math.sin(w),0,x*Math.sin(w)+z*Math.cos(w));
+function orbit(p){if(p.line)S.remove(p.line);const a=vis(p.a*p.dm),e=ee(p.e),b=a*Math.sqrt(1-e*e),pts=[];for(let k=0;k<=200;k++){const E=k/200*TAU;pts.push(rot(a*(Math.cos(E)-e),b*Math.sin(E),p.w))}
+ p.line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:new THREE.Color(p.col),transparent:true,opacity:.45}));p.line.visible=lbm<3;S.add(p.line)}
+let simD=0,spd=1.7,run=true,sel=2;
+const today=()=>{const n=new Date(),y=n.getUTCFullYear();return(Date.UTC(y,n.getUTCMonth(),n.getUTCDate())-Date.UTC(y,0,1))/864e5};simD=today();
+KR.forEach(orbit);$('kp').onchange=()=>KR.forEach(orbit);
+function upd(){KR.forEach(p=>{const e=ee(p.e),Tt=p.T*Math.pow(p.dm,1.5),Mn=TAU*(simD-2)/Tt;let E=Mn;for(let k=0;k<9;k++)E=Mn+e*Math.sin(E);
+ const a=vis(p.a*p.dm),b=a*Math.sqrt(1-e*e),aR=p.a*p.dm;p.m.position.copy(rot(a*(Math.cos(E)-e),b*Math.sin(E),p.w));p.r=aR*(1-e*Math.cos(E));p.v=Math.sqrt(G*MS*(2/(p.r*AU)-1/(aR*AU)))/1e3;if(p.body)p.body.rotation.y=(TAU*simD*p.rot)%TAU});
+ clouds.rotation.y=PL[2].body.rotation.y*1.06;belt.rotation.y=TAU*simD/1600;
+ ML.forEach(o=>{const pp=PL[o.par].m.position,a=TAU*simD/o.T;o.m.position.set(pp.x+o.R*Math.cos(a),pp.y+o.R*Math.sin(a)*Math.sin(o.inc),pp.z+o.R*Math.sin(a)*Math.cos(o.inc));if(o.lock)o.m.rotation.y=-(a+Math.PI);else o.m.lookAt(pp)});
+ // comet tail points away from the Sun, longer & brighter near perihelion
+ const hp=cm.position,dir=hp.clone().normalize(),Ln=Math.max(2,90-hp.length()*.6);for(let i=0;i<NT;i++){const q=i/NT,j=tj[i];tpA[i*3]=hp.x+dir.x*Ln*q+j[0]*Ln*.14*q;tpA[i*3+1]=hp.y+dir.y*Ln*q+j[1]*Ln*.14*q;tpA[i*3+2]=hp.z+dir.z*Ln*q+j[2]*Ln*.14*q;const f=(1-q)*Math.min(1,Ln/40);tcA[i*3]=.55*f+.3*f*q;tcA[i*3+1]=.75*f;tcA[i*3+2]=f}
+ tg.attributes.position.needsUpdate=tg.attributes.color.needsUpdate=true;
+ const p=PL[sel],d=p.m.position.clone().negate().normalize();garr.position.copy(p.m.position);garr.setDirection(d);garr.setLength(p.s*2.2+3,1.2,.8);
+ const a=gl.attributes.position.array;a[0]=p.m.position.x;a[1]=p.m.position.y;a[2]=p.m.position.z;a[3]=a[4]=a[5]=0;gl.attributes.position.needsUpdate=true}
+
+/* ---------- camera: free flight + surface lookout ---------- */
+let yaw=0,pitch=0,fol=null,zv=0,gS=20,ld=null;const off=new V3(),pos=C.position,UP=new V3(0,1,0),k={},joy={x:0,y:0},seen=new Set();
+function look(d){d=d.clone().normalize();yaw=Math.atan2(-d.x,-d.z);pitch=Math.asin(d.y)}
+function home(){takeoff(1);fol=null;C.fov=60;C.updateProjectionMatrix();pos.set(0,150,260);look(pos.clone().negate())}
+function seeIt(i){if(!seen.has(i)){seen.add(i);earn(3,5)}}
+function tp(i,side){takeoff(1);const b=B[i];fol=b.m;const dist=Math.max(b.s*4.5+1.2,1.4);let d=new V3(.3,.35,1).normalize();
+ if(side){const s=b.m.position.clone().negate().setY(0).normalize();d=new V3(-s.z,.18,s.x).normalize()}
+ off.copy(d).multiplyScalar(dist);look(d.clone().negate());if(b.pi!=null){sel=b.pi;syncPhy()}selB=i;seeIt(i);beep(660,.15);if(b.n=='Mars')complete(0)}
+let selB=3;
+function land(i){const b=B[i];if(i==null||!b.land)return toast('🚫');takeoff(1);fol=null;const kids=B.filter(o=>b.pi!=null&&o.par===b.pi&&o.type!='sat'||b.pi!=null&&o.par===b.pi);kids.forEach(o=>o.m.visible=false);
+ ld={b,lat:+$('lat').value*Math.PI/180,lon:0,h:0,p:.15,aim:b.par===2?3:0,kids,f:1};if(b==B[3])earthAtm.material.opacity=0;setSpd(.02);vu();$('hud').style.display='block';selB=i;seeIt(i);beep(440,.25);if(b.n=='Mars')complete(0)}
+function takeoff(q){if(!ld)return;const b=ld.b;b.m.scale.setScalar(1);ld.kids.forEach(o=>o.m.visible=true);earthAtm.material.opacity=.16;S.background=null;starM.opacity=1;ld=null;vu();$('hud').style.display='none';C.up.set(0,1,0);C.fov=60;C.updateProjectionMatrix();
+ if(!q){fol=b.m;off.set(0,b.s*1.5,b.s*4+2);look(off.clone().negate())}}
+function landCam(dt,fw,sd){const b=ld.b,m=b.m,bm=b.pi!=null?PL[b.pi].body:m;let free=1e9;
+ B.forEach(o=>{if(o!==b&&(o.type=='star'||o.type=='planet'||o.type=='moon')&&o.m.visible)free=Math.min(free,o.m.position.distanceTo(m.position)-o.s)});
+ ld.f=cl(.7*free/b.s,1,40);m.scale.setScalar(ld.f);m.updateMatrixWorld(true);
+ const sp=.06,dN=fw*Math.cos(ld.h)-sd*Math.sin(ld.h),dE=fw*Math.sin(ld.h)+sd*Math.cos(ld.h);ld.lat=cl(ld.lat+dN*sp*dt,-1.5,1.5);ld.lon+=dE*sp*dt/Math.max(.15,Math.cos(ld.lat));
+ const n=new V3(Math.cos(ld.lat)*Math.cos(ld.lon),Math.sin(ld.lat),-Math.cos(ld.lat)*Math.sin(ld.lon)),pw=bm.localToWorld(n.clone().multiplyScalar(b.s)),up=pw.clone().sub(m.position).normalize();
+ pos.copy(pw).addScaledVector(up,.06*Math.max(1,ld.f*.3));
+ const ax=UP.clone().applyQuaternion(m.quaternion),no=ax.sub(up.clone().multiplyScalar(ax.dot(up)));if(no.length()<1e-4)no.set(1,0,0);no.normalize();const ea=no.clone().cross(up);ld.up=up;ld.no=no;ld.ea=ea;
+ if(ld.aim!=null){const d=B[ld.aim].m.position.clone().sub(pos).normalize();ld.p=Math.asin(cl(d.dot(up),-1,1));ld.h=Math.atan2(d.dot(ea),d.dot(no));ld.aim=null}
+ const fwd=no.clone().multiplyScalar(Math.cos(ld.h)).addScaledVector(ea,Math.sin(ld.h)).multiplyScalar(Math.cos(ld.p)).addScaledVector(up,Math.sin(ld.p));
+ C.up.copy(up);C.lookAt(pos.clone().add(fwd));
+ const sd2=m.position.clone().negate().normalize(),sE=sd2.dot(up);ld.sE=sE;const a=b.atm;
+ if(a){const dF=cl((sE+.12)/.4,0,1),kk=a[3],tw=Math.max(0,1-Math.abs(sE)/.16);skyC.setRGB(a[0]*dF*kk+tw*.45*kk,a[1]*dF*kk+tw*.18*kk,a[2]*dF*kk+tw*.05*kk);S.background=skyC;starM.opacity=1-dF*kk*.95}else{S.background=null;starM.opacity=1}}
+$('bAim').onclick=()=>{if(!ld)return;let j=(ld.cj==null?-1:ld.cj);do{j=(j+1)%B.length}while(B[j]===ld.b||B[j].type=='sat'&&0);ld.cj=j;ld.aim=j;toast('🔭 '+nm(B[j]))};
+$('bLand').onclick=()=>ld?takeoff():land(B[selB]&&B[selB].land?selB:3);$('bFree').onclick=()=>{ld?takeoff():fol=null};
+const mapPan=(dx,dy)=>{const cy=Math.cos(yaw),sy=Math.sin(yaw);pos.addScaledVector(new V3(cy,0,-sy),-dx*gS*.004).addScaledVector(UP,dy*gS*.004)};
+const ptr=new Map();let pd=0;const cv=$('c');
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptr.set(e.pointerId,e);pd=0});
+cv.addEventListener('pointerup',e=>ptr.delete(e.pointerId));cv.addEventListener('pointercancel',e=>ptr.delete(e.pointerId));
+cv.addEventListener('pointermove',e=>{const o=ptr.get(e.pointerId);if(!o)return;const dx=e.clientX-o.clientX,dy=e.clientY-o.clientY;ptr.set(e.pointerId,e);
+ if(ptr.size==1){if(ld){ld.h+=dx*.005*C.fov/60;ld.p=cl(ld.p-dy*.005*C.fov/60,-1.5,1.5)}else if(e.shiftKey||e.buttons==2)mapPan(dx,dy);else{yaw-=dx*.005;pitch=cl(pitch-dy*.005,-1.55,1.55)}}
+ else if(ptr.size==2){const[a,b]=[...ptr.values()],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(pd)zv+=(d-pd)*.06*gS;pd=d}});
+cv.addEventListener('wheel',e=>{e.preventDefault();zv-=e.deltaY*.012*gS},{passive:false});
+addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName))return;if(e.key=='[')setSpd(spd/2);else if(e.key==']')setSpd(spd*2);else if(e.key=='0')setSpd(1/86400);k[e.key.length==1?e.key.toLowerCase():e.key]=1});addEventListener('keyup',e=>{k[e.key.length==1?e.key.toLowerCase():e.key]=0});
+{const j=$('js'),kn=$('jk');let on=0;const mv=e=>{if(!on)return;const r=j.getBoundingClientRect();let dx=e.clientX-r.left-52,dy=e.clientY-r.top-52;const l=Math.hypot(dx,dy),m=40;if(l>m){dx*=m/l;dy*=m/l}kn.style.left=30+dx+'px';kn.style.top=30+dy+'px';joy.x=dx/m;joy.y=-dy/m};
+ j.onpointerdown=e=>{on=1;j.setPointerCapture(e.pointerId);mv(e)};j.onpointermove=mv;j.onpointerup=j.onpointercancel=()=>{on=0;joy.x=joy.y=0;kn.style.left=kn.style.top='30px'}}
+const hold=(id,key)=>{const b=$(id);b.onpointerdown=()=>k[key]=1;b.onpointerup=b.onpointerleave=()=>k[key]=0};hold('bUp','e');hold('bDn','q');
+$('bZi').onclick=()=>zv+=gS*.9;$('bZo').onclick=()=>zv-=gS*.9;
+let lt=performance.now();
+function loop(tm){requestAnimationFrame(loop);const dt=Math.min((tm-lt)/1000,.1);lt=tm;if(run)simD+=dt*spd;upd();
+ const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),f=new V3(-sy*cp,Math.sin(pitch),-cy*cp),r=new V3(cy,0,-sy);
+ const fw=(k.w||k.ArrowUp?1:0)-(k.s||k.ArrowDown?1:0)+joy.y,sd=(k.d||k.ArrowRight?1:0)-(k.a||k.ArrowLeft?1:0)+joy.x,up=(k.e?1:0)-(k.q?1:0),st=zv*.18;zv-=st;
+ if(ld){C.fov=cl(C.fov-st/gS*20,8,90);C.updateProjectionMatrix();landCam(dt,fw,sd)}
+ else{if(fol)pos.copy(fol.position).add(off);let nd=1e9;B.forEach(b=>nd=Math.min(nd,b.m.position.distanceTo(pos)-b.s));gS=cl(nd*.8,1.5,150);
+  pos.addScaledVector(f,fw*gS*dt+st).addScaledVector(r,sd*gS*dt).addScaledVector(UP,up*gS*dt);if(fol)off.copy(pos).sub(fol.position);C.up.set(0,1,0);C.rotation.order='YXZ';C.rotation.set(pitch,yaw,0)}
+ declutter(tm);R.render(S,C)}
+requestAnimationFrame(loop);
+
+/* ---------- audio ---------- */
+let AC,mg,mu=false;
+function au(){if(AC){AC.state=='suspended'&&AC.resume();return}AC=new(window.AudioContext||window.webkitAudioContext)();mg=AC.createGain();mg.gain.value=mu?0:.5;mg.connect(AC.destination);
+ const bus=AC.createGain();bus.gain.value=.9;bus.connect(mg);
+ const len=AC.sampleRate*4,ir=AC.createBuffer(2,len,AC.sampleRate);for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6)}
+ const rv=AC.createConvolver();rv.buffer=ir;const wet=AC.createGain();wet.gain.value=.7;rv.connect(wet);wet.connect(bus);
+ const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=420;lp.Q.value=2;const pg=AC.createGain();pg.gain.value=.2;lp.connect(pg);pg.connect(bus);pg.connect(rv);
+ [[55,'sine'],[82.4,'triangle'],[110.2,'sine'],[164.9,'triangle'],[220.5,'sine']].forEach(([f,ty],i)=>{const o=AC.createOscillator();o.type=ty;o.frequency.value=f;o.detune.value=(rnd()-.5)*14;const g=AC.createGain();g.gain.value=.5/(i+1.3);o.connect(g);g.connect(lp);o.start()});
+ const l=AC.createOscillator(),lg=AC.createGain();l.frequency.value=.06;lg.gain.value=220;l.connect(lg);lg.connect(lp.frequency);l.start();
+ const N=[523.25,587.33,659.25,783.99,880,1046.5];(function tw(){if(AC){const o=AC.createOscillator(),g=AC.createGain(),t0=AC.currentTime;o.type='sine';o.frequency.value=N[Math.floor(rnd()*N.length)]/(rnd()<.4?2:1);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(.05,t0+.6);g.gain.exponentialRampToValueAtTime(.0005,t0+6);o.connect(g);g.connect(rv);g.connect(bus);o.start(t0);o.stop(t0+6.2)}setTimeout(tw,2500+rnd()*4500)})()}
+function beep(fr=800,d=.1,ty='sine'){if(!AC||mu)return;const o=AC.createOscillator(),g=AC.createGain();o.type=ty;o.frequency.value=fr;g.gain.setValueAtTime(.15,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(mg);o.start();o.stop(AC.currentTime+d)}
+['pointerdown','keydown'].forEach(ev=>addEventListener(ev,au,{once:true}));
+document.addEventListener('click',e=>{if(e.target.closest('.b,.tile'))beep(900,.05,'square')});
+$('bMute').onclick=()=>{mu=!mu;$('bMute').textContent=mu?'🔇':'🔊';if(mg)mg.gain.value=mu?0:.5;if(mu&&SYN())SYN().cancel()};
+
+/* ---------- stats & UI plumbing ---------- */
+const ST=(()=>{try{return JSON.parse(localStorage.getItem('pl')||'{}')}catch(e){return{}}})();let coins=ST.c||0,xp=ST.x||0;
+function stats(){const lv=Math.floor(xp/100)+1;$('coin').textContent=coins;$('xp').textContent=xp;$('lv').textContent=lv;$('rk').textContent=['🧑‍🚀','🚀','🛰','🌌','⭐'][Math.min(4,lv-1)];try{localStorage.setItem('pl',JSON.stringify({c:coins,x:xp}))}catch(e){}}
+const earn=(c,x)=>{coins+=c;xp+=x;stats()};
+const ls=$('lang');Object.entries(LG).forEach(([c,v])=>ls.add(new Option(v[0],c)));
+function setLang(l){lang=l;document.documentElement.lang=l;document.documentElement.dir=(l=='ar'||l=='ur')?'rtl':'ltr';document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(+e.dataset.i));document.querySelectorAll('[data-ph]').forEach(e=>e.placeholder=t(+e.dataset.ph));document.title=t(0);
+ B.forEach(lab);ps();fillAtlas();stats();if($('card').style.display!='none'&&cardI!=null)card(cardI);if(!$('al').children.length)addMsg('a',t(28))}
+ls.onchange=()=>{setLang(ls.value);if(rec&&lis){rec.stop()}};
+function ps(){const s=$('ps');s.className='b';s.innerHTML='';PL.forEach((p,i)=>s.add(new Option(nm(B[i+1]),i)));s.value=sel}
+function fillAtlas(){$('ag').innerHTML=B.map((b,i)=>`<button class="tile" style="border-color:${b.col};color:${b.col}" onclick="card(${i})"><i>${i}</i><b>${b.sy}</b><span>${nm(b)}</span></button>`).join('')}
+let cur='';const dw=$('dw'),pn=$('pn');
+function place(){requestAnimationFrame(()=>{const h=dw.offsetHeight+10;$('fl').style.bottom=h+'px';$('ai').style.bottom=h-4+'px'})}
+function panel(tb){const open=pn.style.display!='none'&&cur==tb;cur=tb;pn.style.display=open?'none':'block';document.querySelectorAll('[data-p]').forEach(p=>p.style.display=p.dataset.p==tb?'':'none');document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',!open&&x.dataset.t==tb));place()}
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>b.dataset.t=='ai'?showAI(2):panel(b.dataset.t));place();
+function showAI(v){const a=$('ai');a.style.display=(v==2?a.style.display=='none':v)?'block':'none';place()}
+function toast(x,keep){const e=$('ts');e.textContent=x;e.style.display='block';clearTimeout(toast.h);if(!keep)toast.h=setTimeout(()=>e.style.display='none',4200)}
+
+/* ---------- time controller ---------- */
+const fm=x=>x===0?'0':(Math.abs(x)>=1e5||Math.abs(x)<.01)?x.toExponential(2):+x.toPrecision(3);
+function setSpd(v){spd=cl(v,1e-9,1e9);$('sl').value=Math.log10(cl(spd,1e-6,1e3));$('slv').textContent='1 d = '+fm(1/spd)+' s'}
+$('sl').oninput=e=>setSpd(Math.pow(10,+e.target.value));setSpd(1.7);
+$('sSlow').onclick=()=>setSpd(spd/2);$('sFast').onclick=()=>setSpd(spd*2);$('sRT').onclick=()=>setSpd(1/86400);$('sD').onclick=()=>setSpd(1);
+$('tset').onclick=()=>{const v=+$('tv').value*+$('tu').value;if(v>0)setSpd(1/v)};
+$('bPlay').onclick=()=>{run=!run;$('bPlay').textContent=run?'⏸':'▶'};
+function reset(){simD=today();setSpd(1.7);run=true;$('bPlay').textContent='⏸';PL.forEach(p=>{p.dm=1;p.mm=1;orbit(p)});syncPhy();home();tour(false)}
+$('bReset').onclick=reset;
+$('dt').onchange=e=>{const[y,m,d]=e.target.value.split('-').map(Number);if(y)simD=(Date.UTC(y,m-1,d)-Date.UTC(y,0,1))/864e5;if(m==6&&d==21)complete(2)};
+document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{simD=+b.dataset.d;if(b.dataset.d=='171')complete(2);run=false;$('bPlay').textContent='▶'});
+function dayNight(){tp(3,1);toast('🌗 ☀️ ↔ 🌙')}$('bDay').onclick=dayNight;
+
+/* ---------- data card / physics ---------- */
+const per=T=>T<=0?'—':T<1?(T*1440).toFixed(0)+' min':T<730?T.toFixed(1)+' d':(T/365.25).toFixed(1)+' yr';
+function dat(b,mm=1){const m=b.mass*mm,Rm=b.Rk*1e3,o=[[8,fm(m)+' kg'],[9,b.Rk.toLocaleString()+' km']];
+ if(b.type!='sat')o.push([10,(G*m/(Rm*Rm)).toFixed(2)+' m/s²'],[11,(Math.sqrt(2*G*m/Rm)/1e3).toFixed(2)+' km/s']);
+ if(b.T)o.push([12,per(b.T)]);if(b.type!='star')o.push([13,fm(dsun(b))+' AU']);return o}
+let cardI=null;
+function card(i){cardI=i;const b=B[i],kids=B.filter(o=>b.pi!=null&&o.par===b.pi);
+ $('card').innerHTML=`<div class="flex gap-3 items-center"><div class="globe" style="background-color:${b.col};${b.tc?`background-image:url(${b.tc.toDataURL()});`:''}box-shadow:inset -16px -8px 26px #000c,0 0 22px ${b.col}"></div>
+ <div class="flex-1"><div class="font-bold text-base" style="color:${b.col}">${TI[b.type]} ${nm(b)}</div><div class="opacity-70">#${i} · ${b.sy}</div></div><button class="b" onclick="$('card').style.display='none'">✕</button></div>
+ <div class="mt-2 leading-6">${dat(b).map(([x,v])=>`${t(x)}: <b class="text-yellow-300">${v}</b>`).join('<br>')}</div>
+ ${kids.length?`<div class="mt-1">${t(14)}: ${kids.map(o=>`<button class="b" onclick="card(${o.i})" style="border-color:${o.col}">${nm(o)}</button>`).join(' ')}</div>`:''}
+ <div class="mt-2 flex gap-1"><button class="b" onclick="tp(${i});$('card').style.display='none'">✈ ${nm(b)}</button>${b.land?`<button class="b" onclick="land(${i});$('card').style.display='none'">🧑‍🚀 ${t(15)}</button>`:''}</div>`;$('card').style.display='block'}
+function syncPhy(){$('ps').value=sel;const p=PL[sel];$('mm').value=p.mm;$('dm').value=p.dm;$('mmv').textContent=p.mm;$('dmv').textContent=p.dm}
+$('ps').onchange=e=>{sel=+e.target.value;syncPhy()};
+$('mm').oninput=e=>{PL[sel].mm=+e.target.value;$('mmv').textContent=e.target.value};
+$('dm').oninput=e=>{const p=PL[sel];p.dm=+e.target.value;$('dmv').textContent=p.dm;orbit(p)};
+function calc(){const ev=Math.sqrt(2*G*5.972e24*$('em').value/(6.371e6*$('er').value))/1e3;$('ev').textContent=ev.toFixed(2)+' km/s'+(ev>299792?' ⚫':'')}$('em').oninput=$('er').oninput=calc;calc();
+setInterval(()=>{const p=PL[sel],b=B[sel+1],F=G*MS*b.mass*p.mm/Math.pow(p.r*AU,2);
+ $('inf').innerHTML=`<b style="color:${b.col}">${nm(b)}</b> · r=${p.r.toFixed(3)} AU, v=${p.v.toFixed(2)} km/s, T=${(p.T*Math.pow(p.dm,1.5)/365.25).toFixed(2)} yr<br>F = G·M☉·m/r² = <b class="text-yellow-300">${fm(F)} N</b><br>`+dat(b,p.mm).map(([x,v])=>`${t(x)}: <b>${v}</b>`).join('<br>');
+ const d=new Date(Date.UTC(2026,0,1)+simD*864e5);if(document.activeElement!=$('dt'))try{$('dt').value=d.toISOString().slice(0,10)}catch(e){}
+ const lat=+$('lat').value,dec=23.44*Math.sin(TAU*(Math.floor(simD)+1-81)/365.25),x=-Math.tan(lat*Math.PI/180)*Math.tan(dec*Math.PI/180),h=x>=1?0:x<=-1?24:24/Math.PI*Math.acos(x);
+ $('latv').textContent=lat;$('dl').textContent=h.toFixed(1)+'h ☀ / '+(24-h).toFixed(1)+'h 🌙';
+ if(ld&&ld.sE!=null)$('hud').innerHTML=`🧑‍🚀 ${nm(ld.b)} · ${t(17)}: ${(Math.asin(cl(ld.sE,-1,1))*57.3).toFixed(0)}° ${ld.sE>0?'☀️':'🌙'} · ${ld.b.atm?'🌫':'⚫'}`},250);
+
+/* ---------- tour ---------- */
+let tr=null,ti=0;const SYN=()=>window.speechSynthesis;
+let spk=0,thk=0,pend=0;
+const LGET=k=>{try{return localStorage.getItem(k)}catch(e){return null}},LSET=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+function pickVoice(){const vs=speechSynthesis.getVoices(),b=LG[lang][1].slice(0,2).toLowerCase(),pref=LGET('v_name'),c=vs.filter(v=>v.lang.replace('_','-').toLowerCase().startsWith(b));if(!c.length)return null;
+ const m=pref&&c.find(v=>v.name==pref);if(m)return m;
+ const sc=v=>(v.lang.replace('_','-').toLowerCase()==LG[lang][1].toLowerCase()?4:0)+(/natural|neural|online/i.test(v.name)?4:0)+(/google/i.test(v.name)?3:0)+(v.localService?0:2)+(v.default?1:0);
+ return c.sort((a,z)=>sc(z)-sc(a))[0]}
+function speak(x){const s=SYN();if(!s||mu)return;s.cancel();pend=0;spk=0;const v=pickVoice(),rt=+$('vr').value||.92,pt=+$('vp').value||1.05;
+ x.replace(/[*#`_]/g,'').replace(/[·•]/g,', ').split(/(?<=[।.?!])\s+|\n+/).map(z=>z.trim()).filter(z=>z.length>1).forEach(z=>{const u=new SpeechSynthesisUtterance(z);if(v)u.voice=v;u.lang=v?v.lang:LG[lang][1];u.rate=rt;u.pitch=pt;u.volume=1;
+  u.onstart=()=>spk=1;u.onend=u.onerror=()=>{pend=Math.max(0,pend-1);spk=pend>0?1:0};pend++;s.speak(u)})}
+function facts(i){const b=B[i];return nm(b)+': '+dat(b).map(([x,v])=>t(x)+' '+v).join(', ')}
+function tour(on){clearInterval(tr);tr=null;if(on===false){SYN()&&SYN().cancel();$('ts').style.display='none';return}ti=0;
+ const step=()=>{if(ti>8){tour(false);return}tp(ti);const x=facts(ti);toast('🎓 '+x,1);speak(x);ti++};step();tr=setInterval(step,13000)}
+$('bTour').onclick=()=>tr?tour(false):tour(true);
+
+/* ---------- AI space assistant: LLM brain (Gemini / OpenAI / Claude) + offline knowledge base ---------- */
+const CN=[
+[['black hole','ব্ল্যাক হোল','কৃষ্ণগহ্বর','event horizon'],`A stellar black hole forms when a massive star (roughly 20+ solar masses) runs out of fuel. Its core collapses in a supernova, and if the remnant exceeds about 2-3 solar masses nothing can stop the collapse. Inside the event horizon (Schwarzschild radius r = 2GM/c²) the escape velocity is greater than the speed of light, so not even light escapes. Supermassive black holes of millions to billions of solar masses sit at galaxy centers, e.g. Sagittarius A* in the Milky Way.`,`বিশাল নক্ষত্রের (প্রায় ২০+ সৌরভর) জ্বালানি শেষ হলে কেন্দ্র ভেঙে পড়ে সুপারনোভা ঘটে; অবশিষ্ট অংশ ২-৩ সৌরভরের বেশি হলে কিছুই ধস থামাতে পারে না এবং ব্ল্যাক হোল তৈরি হয়। ঘটনা দিগন্তের (r = 2GM/c²) ভেতরে মুক্তিবেগ আলোর গতির চেয়ে বেশি, তাই আলোও বের হতে পারে না। ছায়াপথের কেন্দ্রে কোটি-কোটি সৌরভরের মহাকায় ব্ল্যাক হোল থাকে, যেমন আমাদের Sagittarius A*।`],
+[['star','supernova','white dwarf','neutron star','নক্ষত্র','তারা','সুপারনোভা'],`Stars form when clouds of gas collapse under gravity until the core is hot enough to fuse hydrogen into helium; fusion pressure then balances gravity. A Sun-like star lives about 10 billion years, swells into a red giant, and sheds its outer layers, leaving a white dwarf. Stars above about 8 solar masses explode as supernovae and leave a neutron star or a black hole.`,`গ্যাস-মেঘ মহাকর্ষে সংকুচিত হয়ে কেন্দ্র যথেষ্ট গরম হলে হাইড্রোজেন ফিউশনে হিলিয়াম হয়ে নক্ষত্র জন্মায়; ফিউশনের চাপ মহাকর্ষকে ভারসাম্যে রাখে। সূর্যের মতো তারা প্রায় ১০ বিলিয়ন (১,০০০ কোটি) বছর বাঁচে, লোহিত দানব হয়ে বাইরের স্তর ছুড়ে ফেলে শ্বেত বামন হয়। ৮ সৌরভরের বেশি নক্ষত্র সুপারনোভা হয়ে নিউট্রন তারা বা ব্ল্যাক হোল রেখে যায়।`],
+[['galaxy','milky way','andromeda','গ্যালাক্সি','ছায়াপথ'],`A galaxy is a gravitationally bound system of billions of stars, gas, dust and dark matter. The Milky Way is a barred spiral about 100,000 light-years across with 100-400 billion stars; the Sun orbits its center every ~230 million years. Andromeda, 2.5 million light-years away, will merge with us in roughly 4-5 billion years.`,`গ্যালাক্সি হলো মহাকর্ষে আবদ্ধ কোটি কোটি তারা, গ্যাস, ধূলা ও ডার্ক ম্যাটারের ব্যবস্থা। আমাদের ছায়াপথ প্রায় ১ লক্ষ আলোকবর্ষ চওড়া, এতে ১০০-৪০০ বিলিয়ন তারা; সূর্য প্রায় ২৩ কোটি বছরে একবার কেন্দ্র প্রদক্ষিণ করে। ২৫ লক্ষ আলোকবর্ষ দূরের অ্যান্ড্রোমিডা ৪-৫ বিলিয়ন বছরে আমাদের সাথে মিশে যাবে।`],
+[['big bang','universe','expansion','বিগ ব্যাং','মহাবিশ্ব'],`The Big Bang theory says the universe expanded from an extremely hot, dense state about 13.8 billion years ago. Evidence: galaxies recede from us (Hubble's law), the cosmic microwave background glows at 2.7 K, and hydrogen/helium abundances match predictions. Space itself is expanding, and the expansion is accelerating, which we attribute to dark energy.`,`মহাবিশ্ব প্রায় ১৩.৮ বিলিয়ন বছর আগে অতি উত্তপ্ত ঘন অবস্থা থেকে প্রসারিত হতে শুরু করে—এটাই বিগ ব্যাং তত্ত্ব। প্রমাণ: গ্যালাক্সিগুলো দূরে সরছে (হাবলের সূত্র), ২.৭ K তাপমাত্রার মহাজাগতিক পটভূমি বিকিরণ, এবং হাইড্রোজেন-হিলিয়ামের অনুপাত। প্রসারণ ত্বরান্বিত হচ্ছে, যার কারণ ডার্ক এনার্জি ধরা হয়।`],
+[['dark matter','dark energy','ডার্ক ম্যাটার','ডার্ক এনার্জি'],`Dark matter (~27% of the universe) is invisible matter detected through gravity: galaxies rotate too fast and clusters bend light more than visible matter explains. Dark energy (~68%) drives the accelerating expansion. Ordinary atoms make up only ~5%.`,`ডার্ক ম্যাটার (মহাবিশ্বের ~২৭%) অদৃশ্য, শুধু মহাকর্ষীয় প্রভাবে ধরা পড়ে—গ্যালাক্সি প্রত্যাশার চেয়ে দ্রুত ঘোরে, ক্লাস্টার বেশি আলো বাঁকায়। ডার্ক এনার্জি (~৬৮%) প্রসারণ ত্বরান্বিত করে। সাধারণ পদার্থ মাত্র ~৫%।`],
+[['speed of light','relativity','light year','light-year','redshift','আলোর গতি','আলোকবর্ষ','আপেক্ষিকতা'],`Light travels 299,792 km/s; a light-year (9.46 trillion km) is the distance it covers in a year. Sunlight takes about 8 minutes 20 seconds to reach Earth. Special relativity says nothing with mass can reach that speed and that moving clocks run slower; general relativity adds that gravity bends spacetime and slows time too.`,`আলোর গতি ২,৯৯,৭৯২ কিমি/সে; এক বছরে আলো যে দূরত্ব যায় তা এক আলোকবর্ষ (৯.৪৬ লক্ষ কোটি কিমি)। সূর্যের আলো পৃথিবীতে পৌঁছাতে ~৮ মিনিট ২০ সেকেন্ড লাগে। বিশেষ আপেক্ষিকতা বলে ভরযুক্ত কিছু এই গতি পেতে পারে না, আর চলমান ঘড়ি ধীরে চলে; সাধারণ আপেক্ষিকতায় মহাকর্ষ স্থান-কাল বাঁকায়।`],
+[['exoplanet','habitable','alien','extraterrestrial','এক্সোপ্ল্যানেট','এলিয়েন'],`Exoplanets are planets orbiting other stars; over 5,000 are confirmed, found by the transit method (tiny dips in starlight) or by the star's wobble. The habitable zone is the orbital range where liquid water could exist. No life has been found beyond Earth yet.`,`এক্সোপ্ল্যানেট হলো অন্য তারাকে ঘোরা গ্রহ; ৫,০০০-এর বেশি নিশ্চিত, ট্রানজিট (তারার আলো সামান্য কমা) বা তারার দোলন থেকে আবিষ্কৃত। বাসযোগ্য অঞ্চলে তরল পানি থাকতে পারে। পৃথিবীর বাইরে এখনো প্রাণের সন্ধান মেলেনি।`],
+[['tide','eclipse','জোয়ার','গ্রহণ'],`Tides occur because the Moon's gravity pulls harder on Earth's near side than the far side, stretching the oceans; the Sun adds a smaller effect (spring tides when Sun, Moon and Earth align). A solar eclipse happens when the Moon blocks the Sun at new moon; a lunar eclipse when Earth's shadow falls on the Moon at full moon.`,`চাঁদের মহাকর্ষ পৃথিবীর কাছের পাশে বেশি, দূরের পাশে কম টানে—এতে সাগর ফুলে ওঠে, জোয়ার হয়; সূর্যও কিছুটা প্রভাব ফেলে (সূর্য-চাঁদ-পৃথিবী এক সারিতে এলে ভরা কোটাল)। অমাবস্যায় চাঁদ সূর্যকে ঢাকলে সূর্যগ্রহণ, পূর্ণিমায় পৃথিবীর ছায়া চাঁদে পড়লে চন্দ্রগ্রহণ।`],
+[['solar system form','nebula','সৌরজগৎ'],`The solar system formed about 4.6 billion years ago from a collapsing nebula. Most mass became the Sun; the rest flattened into a disk where dust clumped into planetesimals and then planets. Rocky planets formed close in where it was hot; gas and ice giants formed beyond the frost line.`,`প্রায় ৪.৬ বিলিয়ন বছর আগে এক নীহারিকা ভেঙে সৌরজগৎ তৈরি হয়। বেশিরভাগ ভর সূর্য হলো, বাকিটা চাকতিতে ধূলা জমে ক্ষুদ্রগ্রহ ও পরে গ্রহ হলো। গরম অঞ্চলে পাথুরে গ্রহ, দূরে ঠান্ডা অঞ্চলে গ্যাস ও বরফের দানব গ্রহ গঠিত হয়।`],
+[['day and night','why day','rotation','দিন ও রাত','দিন-রাত কেন'],`Day and night happen because Earth rotates once every ~24 hours, so each place turns toward and then away from the Sun. Seasons are different: they come from Earth's 23.4° axial tilt, not from its distance to the Sun.`,`পৃথিবী প্রায় ২৪ ঘণ্টায় একবার নিজ অক্ষে ঘোরে, তাই প্রতিটি স্থান সূর্যের দিকে ও বিপরীতে ঘুরে দিন-রাত হয়। ঋতু আলাদা: তা পৃথিবীর অক্ষের ২৩.৪° হেলানোর কারণে, সূর্যের দূরত্বের কারণে নয়।`],
+[['comet','ধূমকেতু'],`A comet is an icy body of ice, dust and rock. Near the Sun it heats up and sheds gas and dust, forming a glowing coma and tails; the tail always points away from the Sun, pushed by the solar wind and radiation. Halley's comet returns every ~76 years.`,`ধূমকেতু বরফ, ধূলা ও পাথরের পিণ্ড। সূর্যের কাছে এলে গরম হয়ে গ্যাস-ধূলা ছড়ায়, উজ্জ্বল কোমা ও লেজ তৈরি হয়; সৌরবায়ু ও বিকিরণের কারণে লেজ সবসময় সূর্যের উল্টো দিকে থাকে। হ্যালির ধূমকেতু ~৭৬ বছর পর পর ফেরে।`],
+[['asteroid','meteor','meteorite','meteoroid','belt','গ্রহাণু','উল্কা'],`Asteroids are rocky leftovers of planet formation, mostly in the belt between Mars and Jupiter (Ceres is the largest). A meteoroid is a small piece of space rock, a meteor is its streak of light in the atmosphere, and a meteorite is what lands on the ground.`,`গ্রহাণু হলো গ্রহ গঠনের পাথুরে অবশিষ্ট, বেশিরভাগ মঙ্গল-বৃহস্পতির মাঝের বেল্টে (সবচেয়ে বড় সেরেস)। ছোট টুকরো মিটিওরয়েড, বায়ুমণ্ডলে তার আলোর রেখা উল্কা, আর মাটিতে পড়লে উল্কাপিণ্ড।`],
+[['orbital velocity','orbit','satellite','weightless','কক্ষপথ','উপগ্রহ','ভারহীন'],`An orbit is continuous free fall: an object moves sideways fast enough that it keeps missing the planet. Circular orbital speed is v = √(GM/r); the ISS at ~400 km moves about 7.7 km/s and circles Earth every ~93 minutes. Astronauts feel weightless because they and the station fall together.`,`কক্ষপথ হলো নিরন্তর মুক্তপতন: বস্তু পাশাপাশি এত দ্রুত চলে যে গ্রহকে ক্রমাগত এড়িয়ে যায়। বৃত্তাকার কক্ষীয় গতি v = √(GM/r); ~৪০০ কিমি উচ্চতায় ISS প্রায় ৭.৭ কিমি/সে বেগে ~৯৩ মিনিটে একবার ঘোরে। নভোচারী ও স্টেশন একসাথে পড়ছে বলে তারা ভারহীন বোধ করে।`],
+[['escape','মুক্তি'],`Escape velocity is the minimum speed to leave a body's gravity without further propulsion: v = √(2GM/R). Earth 11.2 km/s, Moon 2.4, Mars 5.0, Jupiter 59.5, Sun 617.5 km/s. It does not depend on the escaping object's mass.`,`মুক্তিবেগ হলো অতিরিক্ত বল ছাড়া কোনো বস্তুর মহাকর্ষ ছেড়ে যাওয়ার ন্যূনতম বেগ: v = √(2GM/R)। পৃথিবী ১১.২, চাঁদ ২.৪, মঙ্গল ৫.০, বৃহস্পতি ৫৯.৫, সূর্য ৬১৭.৫ কিমি/সে। এটি বস্তুর নিজের ভরের উপর নির্ভর করে না।`],
+[['kepler','ellipse','কেপলার'],`Kepler's laws: (1) planets move in ellipses with the Sun at one focus; (2) the line from Sun to planet sweeps equal areas in equal times, so planets move fastest at perihelion; (3) T² ∝ a³, so distant planets have far longer years (Earth 1 yr at 1 AU, Neptune ~165 yr at 30 AU). Newton later showed all three follow from gravity.`,`কেপলারের সূত্র: (১) গ্রহের কক্ষপথ উপবৃত্ত, সূর্য একটি ফোকাসে; (২) সমান সময়ে সূর্য-গ্রহ রেখা সমান ক্ষেত্রফল অতিক্রম করে, তাই সূর্যের কাছে গ্রহ দ্রুত চলে; (৩) T² ∝ a³, তাই দূরের গ্রহের বছর অনেক বড় (পৃথিবী ১ বছর, নেপচুন ~১৬৫ বছর)। নিউটন দেখান এ সবই মহাকর্ষ থেকে আসে।`],
+[['season','tilt','ঋতু'],`Earth's axis is tilted 23.4°. Around 21 June the Northern Hemisphere leans toward the Sun (long days, summer); around 21 December it leans away (short days, winter). The equinoxes (21 March, 23 September) have nearly equal day and night.`,`পৃথিবীর অক্ষ ২৩.৪° হেলানো। ২১ জুনের কাছে উত্তর গোলার্ধ সূর্যের দিকে হেলে (দিন বড়, গ্রীষ্ম), ২১ ডিসেম্বরে বিপরীতে (দিন ছোট, শীত)। ২১ মার্চ ও ২৩ সেপ্টেম্বরে দিন-রাত প্রায় সমান।`],
+[['gravity','newton','gravitation','মহাকর্ষ','নিউটন','অভিকর্ষ'],`Gravity is the attractive force between all masses. Newton's law: F = G·m₁·m₂/r² with G = 6.674×10⁻¹¹ N·m²/kg², so doubling the distance cuts the force to a quarter. Einstein later explained gravity as the curvature of spacetime caused by mass and energy, which is why light bends near the Sun.`,`মহাকর্ষ হলো সব ভরের মধ্যে আকর্ষণ বল। নিউটনের সূত্র: F = G·m₁·m₂/r² (G = 6.674×10⁻¹¹), তাই দূরত্ব দ্বিগুণ হলে বল এক-চতুর্থাংশ। আইনস্টাইনের ব্যাখ্যায় ভর স্থান-কালকে বাঁকায়, তাই সূর্যের কাছে আলোও বেঁকে যায়।`]];
+const TP=[[8,['mass','ভর']],[9,['radius','size','ব্যাসার্ধ']],[10,['gravity','অভিকর্ষ']],[11,['escape','মুক্তি']],[12,['period','orbit','year','কক্ষ','সময়']],[13,['distance','far','দূরত্ব']]];
+const mt=(s,a)=>/^[a-z0-9 \-]+$/.test(a)?new RegExp('\\b'+a+'(s|es)?\\b').test(s):s.includes(a);
+const findB=s=>B.findIndex(b=>b.al.some(a=>mt(s,a)));
+function local(q){const s=q.toLowerCase(),i=findB(s),c=CN.find(c=>c[0].some(a=>mt(s,a))),want=i>=0?TP.filter(([x,w])=>[...w,t(x).toLowerCase()].some(a=>mt(s,a))).map(([x])=>x):[];
+ if(i>=0&&(want.length||!c)){const b=B[i],d=dat(b),rows=want.length?d.filter(([x])=>want.includes(x)):d,kids=B.filter(o=>b.pi!=null&&o.par===b.pi);
+  return nm(b)+': '+rows.map(([x,v])=>t(x)+' '+v).join(' · ')+(!want.length&&kids.length?` · ${t(14)}: ${kids.map(nm).join(', ')}`:'')}
+ return c?(isBn()?c[2]:c[1])+(isBn()||lang=='en'?'':`\n🌐 ${LG[lang][0]} → 🔑 API key`):''}
+const PM={p:'openai',g:'gemini-flash-latest',o:'gpt-4o-mini',c:'claude-haiku-5-5'},H=[];
+const PROXY_URL=''; // ← Cloudflare Worker URL (gemini-proxy-worker.js) এখানে বসান; খালি থাকলে ফ্রি ফলব্যাক চলবে
+const llm=()=>1;
+async function remote(){const key=$('ak').value.trim(),pv=$('ap').value,md=$('am').value.trim()||PM[pv],hh=H.slice(-10);while(hh[0]&&hh[0].role!='user')hh.shift();
+ const sys=`You are an expert astronomer and physicist inside a 3D science-fair app (Voice-Controlled Physics Lab). Answer ANY question about space, astronomy, planets, stars, galaxies, black holes, comets, cosmology and physics (gravity, Kepler, Newton, relativity, escape velocity, etc.) with a clear, accurate, conversational explanation of about 100-180 words; include key formulas and real numbers when helpful. Plain text only, no markdown. Reply ONLY in ${LG[lang][0]}. If the question is unrelated to science, answer briefly and steer back to space.`;
+ if(PROXY_URL&&!key)try{const r=await fetch(PROXY_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:sys,messages:hh}),signal:AbortSignal.timeout(30000)}),j=await r.json();if(r.ok&&j.text)return j.text}catch(e){}
+ if(pv=='p'||!key){const r=await fetch('https://text.pollinations.ai/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:pv=='p'?md:'openai',messages:[{role:'system',content:sys},...hh]}),signal:AbortSignal.timeout(30000)});const j=await r.json();if(!r.ok)throw Error(r.status);return j.choices[0].message.content}
+ if(key){let r,j;
+  if(pv=='g'){r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${md}:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:hh.map(m=>({role:m.role=='user'?'user':'model',parts:[{text:m.content}]}))})});if(r.status==404)for(const m2 of ['gemini-flash-latest','gemini-2.5-flash']){if(m2==md)continue;r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m2}:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:hh.map(m=>({role:m.role=='user'?'user':'model',parts:[{text:m.content}]}))})});if(r.status!=404)break}j=await r.json();if(!r.ok)throw Error(j.error&&j.error.message||r.status);return j.candidates[0].content.parts.map(p=>p.text).join('')}
+  if(pv=='o'){r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({model:md,messages:[{role:'system',content:sys},...hh]})});j=await r.json();if(!r.ok)throw Error(j.error&&j.error.message||r.status);return j.choices[0].message.content}
+  r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},body:JSON.stringify({model:md,max_tokens:700,system:sys,messages:hh})});j=await r.json();if(!r.ok)throw Error(j.error&&j.error.message||r.status);return j.content.map(p=>p.text||'').join('')}
+ if(!(window.claude&&window.claude.complete))throw Error('API key?');return await window.claude.complete(sys+'\n\n'+hh.map(m=>m.role+': '+m.content).join('\n'))}
+function addMsg(r,x){const d=document.createElement('div');d.className=r=='u'?'mu':'ma';d.textContent=x;$('al').appendChild(d);$('al').scrollTop=1e6;return d}
+async function ask(q){showAI(1);addMsg('u',q);earn(2,2);H.push({role:'user',content:q});const th=addMsg('a','…');let a='';thk=1;
+ if(llm())try{a=(await remote()).replace(/[*#`]/g,'').trim()}catch(e){addMsg('a','⚠ '+e.message)}
+ if(!a)a=local(q)||t(29);thk=0;th.textContent=a;$('al').scrollTop=1e6;H.push({role:'assistant',content:a});speak(a)}
+const pm=()=>$('am').placeholder=PM[$('ap').value];
+try{['ak','ap','am'].forEach(i=>{const v=localStorage.getItem('k_'+i);if(v!=null)$(i).value=v;$(i).onchange=()=>{pm();try{localStorage.setItem('k_'+i,$(i).value)}catch(e){}}})}catch(e){}pm();
+$('aSend').onclick=()=>{const q=$('aq').value.trim();if(q){$('aq').value='';handle(q)}};$('aq').onkeydown=e=>{if(e.key=='Enter')$('aSend').onclick()};
+
+/* ---------- voice commands + speech recognition ---------- */
+function cmd(s){s=s.toLowerCase();const h=a=>a.some(w=>s.includes(w)),i=findB(s);
+ if(h(['জুম ইন','zoom in']))return zv+=gS*2,toast('🔍＋'),1;
+ if(h(['জুম আউট','zoom out']))return zv-=gS*2,toast('🔍－'),1;
+ if(h(['থামো','থামাও','পজ','pause','stop'])){run=false;$('bPlay').textContent='▶';tour(false);toast('⏸');return 1}
+ if(h(['চালু','চালাও','প্লে','play','resume'])){run=true;$('bPlay').textContent='⏸';toast('▶');return 1}
+ if(h(['রিসেট','reset']))return reset(),toast('↺'),1;
+ if(h(['দিন রাত','দিন-রাত','day night','day/night']))return dayNight(),1;
+ if(h(['ট্যুর','tour']))return tour(true),1;
+ if(h(['take off','takeoff','উড়ুন','উড়ো']))return takeoff(),1;
+ if(h(['land','নামো','নামুন']))return land(i>=0?i:selB),1;
+ if(h(['টেলিপোর্ট','teleport','go to','যাও'])&&i>=0)return tp(i),toast('✈ '+nm(B[i])),1;
+ return 0}
+function handle(x){toast('🎤 '+x);cmd(x)||ask(x)}
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null,lis=false;
+function mic(){if(!SR)return toast('Voice: use Chrome');if(lis){lis=false;rec.stop();document.querySelectorAll('.mic').forEach(e=>e.classList.remove('on'));return}
+ const go=()=>{rec=new SR();rec.lang=LG[lang][1];rec.continuous=true;rec.interimResults=false;rec.onresult=e=>handle(e.results[e.results.length-1][0].transcript);rec.onend=()=>{if(lis)setTimeout(go,200)};
+  rec.onerror=e=>{if(e.error=='aborted')return;const bad=e.error=='not-allowed'||e.error=='service-not-allowed';if(bad){lis=false;document.querySelectorAll('.mic').forEach(x=>x.classList.remove('on'))}toast(bad?'🎤 '+t(49):e.error=='network'?(isBn()?'🎤 ইন্টারনেট নেই':'🎤 No internet'):e.error=='audio-capture'?'🎤 ✖':e.error=='no-speech'?'🎤 …':'🎤 '+e.error,6000)};try{rec.start()}catch(e){}};
+ lis=true;document.querySelectorAll('.mic').forEach(e=>e.classList.add('on'));go()}
+$('bMic').onclick=$('aMic').onclick=mic;
+
+/* ---------- radar pulse visualizer ---------- */
+const rcx=$('rdr').getContext('2d'),RC={idle:[80,160,255],listen:[255,70,190],think:[170,110,255],speak:[60,255,220]};
+(function rd(t){requestAnimationFrame(rd);const s=lis?'listen':thk?'think':spk?'speak':'idle',c=48,R=44,[r,g,b]=RC[s],col=a=>`rgba(${r},${g},${b},${a})`;rcx.clearRect(0,0,96,96);rcx.fillStyle='rgba(8,14,40,.45)';rcx.beginPath();rcx.arc(c,c,R+2,0,7);rcx.fill();rcx.lineWidth=1;rcx.strokeStyle=col(.35);
+ for(let i=1;i<=3;i++){rcx.beginPath();rcx.arc(c,c,R*i/3,0,7);rcx.stroke()}rcx.beginPath();rcx.moveTo(c-R,c);rcx.lineTo(c+R,c);rcx.moveTo(c,c-R);rcx.lineTo(c,c+R);rcx.stroke();
+ const sp={idle:.12,listen:.55,think:.3,speak:.4}[s];for(let k=0;k<3;k++){const p=(t/1000*sp+k/3)%1;rcx.strokeStyle=col((1-p)*(s=='idle'?.25:.8)*(s=='speak'?.6+.4*Math.sin(t/80):1));rcx.lineWidth=2*(1-p)+.5;rcx.beginPath();rcx.arc(c,c,R*(.2+.8*p),0,7);rcx.stroke()}
+ const a=t/1000*(s=='think'?3.4:1.3);rcx.lineWidth=1.5;for(let i=0;i<30;i++){const q=a-i*.03;rcx.strokeStyle=col((1-i/30)*.45);rcx.beginPath();rcx.moveTo(c,c);rcx.lineTo(c+Math.cos(q)*R,c+Math.sin(q)*R);rcx.stroke()}})(0);
+/* ---------- voice settings ---------- */
+$('vr').value=LGET('v_r')||.92;$('vp').value=LGET('v_p')||1.05;
+const vl=()=>{$('vrv').textContent=$('vr').value;$('vpv').textContent=$('vp').value};vl();
+$('vr').oninput=$('vp').oninput=e=>{LSET(e.target.id=='vr'?'v_r':'v_p',e.target.value);vl()};
+$('vs').onchange=e=>LSET('v_name',e.target.value);
+$('vt').onclick=()=>speak(isBn()?'নমস্কার! আমি অ্যাস্ট্রা ল্যাব। আমার কণ্ঠ কি স্পষ্ট শোনা যাচ্ছে?':'Hello! This is Astra Lab. Can you hear me clearly?');
+function fillVoices(){if(!window.speechSynthesis)return;const b=LG[lang][1].slice(0,2).toLowerCase(),vs=speechSynthesis.getVoices().filter(v=>v.lang.replace('_','-').toLowerCase().startsWith(b)),cur=LGET('v_name')||'';
+ $('vs').innerHTML='<option value="">🔁 Auto</option>'+vs.map(v=>`<option value="${v.name}">${v.name} (${v.lang})</option>`).join('');$('vs').value=vs.some(v=>v.name==cur)?cur:''}
+if(window.speechSynthesis){speechSynthesis.onvoiceschanged=fillVoices;fillVoices();ls.addEventListener('change',fillVoices)}
+/* ---------- gear settings modal ---------- */
+function openGm(){$('gm').style.display='flex'}
+$('bGear').onclick=openGm;$('gshow').onchange=e=>$('ak').type=e.target.checked?'text':'password';$('gm').onclick=e=>{if(e.target.id=='gm')$('gm').style.display='none'};
+$('gSave').onclick=()=>{['ak','ap','am'].forEach(i=>{try{localStorage.setItem('k_'+i,$(i).value.trim())}catch(e){}});pm();$('gm').style.display='none';toast('✅')};
+$('gClear').onclick=()=>{$('ak').value='';try{localStorage.removeItem('k_ak')}catch(e){}toast('🗑')};
+if(window.speechSynthesis)setTimeout(()=>{const v=speechSynthesis.getVoices();if(lang=='bn'&&v.length&&!v.some(x=>/^bn/i.test(x.lang)))toast('ℹ️ বাংলা কণ্ঠ নেই — Settings → Google TTS → বাংলা ইনস্টল করুন',7000)},3500);
+/* ---------- NASA live data (APOD + NeoWs, DEMO_KEY) ---------- */
+const NK='DEMO_KEY',esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));let nasaOn=0,ND=null;
+const getJ=async u=>{const r=await fetch(u,{signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error(r.status);return r.json()};
+function renderNasa(){if(!ND)return;const{ap,ne,demo,day}=ND;$('nb').innerHTML=`<div class="font-bold text-cyan-300">🌌 ${t(45)} · ${esc(ap.title)}</div>${ap.media_type=='image'?`<img src="${esc(ap.url)}" alt="" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin:4px 0">`:''}<div class="opacity-90">${esc(ap.explanation.slice(0,380))}…</div><button id="nx" class="b mt-1">🤖 ${t(4)}</button>
+ <div class="font-bold text-cyan-300 mt-2">☄️ ${t(46)} · ${day}</div>${ne.map(o=>`<div class="border-t border-blue-400/20 py-1">${esc(o.n)} ${o.h?'⚠️':''}<br>📏 ${fm(o.d)} m · 🚀 ${o.v} km/s</div>`).join('')}<div class="opacity-60">${demo.length?'⚠ '+t(47)+' ('+demo.join(', ')+')':t(48)}</div>`;
+ $('nx').onclick=()=>ask('Explain this NASA Astronomy Picture of the Day in simple words: '+ap.title+'. '+ap.explanation.slice(0,600))}
+async function loadNasa(force){if((nasaOn||ND)&&!force)return;nasaOn=1;const day=new Date().toISOString().slice(0,10),demo=[];$('nb').textContent='⏳ NASA…';let ap,ne;
+ try{ap=await getJ(`https://api.nasa.gov/planetary/apod?api_key=${NK}`)}catch(e){demo.push('APOD');ap={title:'The Pale Blue Dot (demo)',explanation:'A famous Voyager 1 photo of Earth taken from about 6 billion kilometers away: a tiny blue dot in the vastness of space. It reminds us how small and precious our home planet is.',media_type:'none'}}
+ try{const j=await getJ(`https://api.nasa.gov/neo/rest/v1/feed?start_date=${day}&end_date=${day}&api_key=${NK}`);ne=(Object.values(j.near_earth_objects)[0]||[]).slice(0,3).map(o=>({n:o.name.replace(/[()]/g,''),d:Math.round(o.estimated_diameter.meters.estimated_diameter_max),v:(+o.close_approach_data[0].relative_velocity.kilometers_per_second).toFixed(1),h:o.is_potentially_hazardous_asteroid}));if(!ne.length)throw 0}
+ catch(e){demo.push('NeoWs');ne=[{n:'2024 XY1',d:120,v:'14.2',h:false},{n:'2023 QR7',d:48,v:'9.6',h:false},{n:'2022 MK3',d:310,v:'18.7',h:false}]}
+ ND={ap,ne,demo,day};renderNasa()}
+document.querySelector('[data-t=nasa]').addEventListener('click',()=>loadNasa());ls.addEventListener('change',renderNasa);
+/* ---------- Junior Astronaut missions ---------- */
+let MD=[0,0,0];try{MD=JSON.parse(localStorage.getItem('ms')||'[0,0,0]')}catch(e){}
+const MT=[40,41,42];
+function renderMs(){const n=MD.filter(Boolean).length;$('msc').textContent=n+'/3';$('mb').innerHTML=`<div class="font-bold text-yellow-300 mb-1">🎖 ${t(39)}</div><div class="h-2 rounded bg-white/10 mb-2"><div style="width:${n/3*100}%;height:100%;border-radius:4px;background:linear-gradient(90deg,#3cffdc,#a86bff)"></div></div>`+MT.map((m,i)=>`<label class="flex gap-2 items-start py-1"><input type="checkbox" ${MD[i]?'checked':''} onchange="complete(${i},this.checked)" style="margin-top:3px"><span style="${MD[i]?'opacity:.6;text-decoration:line-through':''}">${t(m)}</span></label>`).join('')+(n==3?'<button class="b" onclick="showBadge()">🎖 Badge</button>':'')}
+function complete(i,on=true){if(on&&MD[i])return;MD[i]=on?1:0;LSET('ms',JSON.stringify(MD));renderMs();if(on){earn(10,20);toast('🎖 '+MD.filter(Boolean).length+'/3 ✅');beep(1000,.15);if(MD.every(Boolean))setTimeout(showBadge,700)}}
+function showBadge(){$('bdt').textContent=t(44);$('bdg').style.display='flex';if(!LGET('badge')){LSET('badge','1');earn(50,100)}}
+$('ecb').onclick=()=>{calc();const a=+$('em').value,b=+$('er').value;if(Math.abs(a-1)<.01&&Math.abs(b-1)<.01){complete(1);toast('🚀 v = 11.19 km/s')}else toast(t(50))};
+ls.addEventListener('change',renderMs);renderMs();
+/* ---------- init ---------- */
+B.forEach(lab);vu();ls.value='en';setLang('en');syncPhy();
+</script></body></html>
